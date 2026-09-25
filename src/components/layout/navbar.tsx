@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Sparkles, Calendar, Bookmark, Compass } from "lucide-react";
+import { UserMenu } from "@/components/auth/user-menu";
 
 export function Navbar() {
   return (
@@ -48,11 +49,12 @@ export function Navbar() {
         </div>
 
         {/* Right CTA / Auth Slot */}
-        <div id="navbar-auth-slot" className="flex items-center gap-3">
+        <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center rounded-full border border-orbit-border bg-orbit-paper/60 px-3 py-1 text-xs text-orbit-muted">
             <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-emerald-600"></span>
             @rvce.edu.in
           </div>
+          <UserMenu />
         </div>
       </div>
     </header>
