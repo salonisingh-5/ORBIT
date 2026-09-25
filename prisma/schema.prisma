@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  CLUB_OWNER
+  ADMIN
+}
+
+enum Category {
+  HACKATHON
+  CTF
+  CODING_CONTEST
+  WORKSHOP
+  INTERNSHIP
+  COMPETITION
+  OTHER
+}
+
+enum OpportunityStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+// NextAuth Account Model
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+// NextAuth Session Model
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// NextAuth Verification Token
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Core User Model
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role      @default(STUDENT)
+  clubId        String?
+  club          Club?     @relation(fields: [clubId], references: [id], onDelete: SetNull)
+
+  accounts      Account[]
+  sessions      Session[]
+  bookmarks     Bookmark[]
+  notifications Notification[]
+  createdOpportunities Opportunity[] @relation("CreatedBy")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Club Model
+model Club {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?  @db.Text
+  logoUrl     String?
+  websiteUrl  String?
+
+  owners        User[]
+  opportunities Opportunity[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Opportunity Model
+model Opportunity {
+  id          String            @id @default(cuid())
+  title       String
+  slug        String            @unique
+  description String            @db.Text
+  category    Category          @default(OTHER)
+  officialUrl String
+  deadline    DateTime
+  startDate   DateTime?
+  endDate     DateTime?
+  location    String?           @default("Online / RVCE Campus")
+  status      OpportunityStatus @default(APPROVED)
+
+  clubId      String?
+  club        Club?   @relation(fields: [clubId], references: [id], onDelete: SetNull)
+
+  createdById String
+  createdBy   User    @relation("CreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  bookmarks     Bookmark[]
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([deadline])
+  @@index([category])
+  @@index([status])
+}
+
+// Student Bookmarks
+model Bookmark {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  opportunityId String
+  opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, opportunityId])
+}
+
+// In-app & Email Reminders / Notifications
+model Notification {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  opportunityId String?
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  title     String
+  message   String   @db.Text
+  type      String   @default("DEADLINE_REMINDER")
+  read      Boolean  @default(false)
+  emailSent Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}
