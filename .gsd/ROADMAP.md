@@ -1,37 +1,37 @@
 ---
 milestone: v1.0
 version: 1.0.0
-updated: 2026-09-25T19:28:00+05:30
+updated: 2026-09-25T19:50:00+05:30
 ---
 
 # Roadmap — ORBIT
 
-> **Current Phase:** Phase 1 - Foundation & Authentication
+> **Current Phase:** Phase 2 - Opportunity Feed & Discovery
 > **Status:** ⬜ Not Started
 
 ## Must-Haves (from SPEC)
 
-- [ ] Google OAuth restricted strictly to `@rvce.edu.in` accounts
+- [x] Google OAuth restricted strictly to `@rvce.edu.in` accounts (Phase 1)
 - [ ] Opportunity Feed with multi-category search, filter, and detail view
 - [ ] Save/bookmark opportunities to student's personal list
 - [ ] Interactive Calendar view (All vs. Saved opportunities)
 - [ ] In-app notification center and automated email reminders (via Resend)
 - [ ] Club Owner dashboard with scoped CRUD on own club's events
 - [ ] Admin dashboard with club management, user management, and moderation queue
-- [ ] Premium editorial aesthetic (warm ivory, dark brown serif, muted gold accents)
+- [x] Premium editorial aesthetic (warm ivory, dark brown serif, muted gold accents) (Phase 1)
 
 ---
 
 ## Phases
 
 ### Phase 1: Foundation & Authentication
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 **Objective:** Scaffold Next.js application, configure Tailwind editorial design tokens (warm ivory, dark brown serif typography, muted gold), define Prisma PostgreSQL database schema (Users, Roles, Clubs, Opportunities, Bookmarks, Notifications), and implement NextAuth Google OAuth strictly restricted to `@rvce.edu.in`.
 **Requirements:** REQ-01, REQ-02, REQ-03, NFR-01, NFR-04, CON-01, CON-02
 
 **Plans:**
-- [ ] Plan 1.1: Project scaffolding, editorial theme configuration (Tailwind, typography, layout shell), and Prisma schema setup
-- [ ] Plan 1.2: NextAuth Google OAuth integration with `@rvce.edu.in` domain verification and role-based session management
+- [x] Plan 1.1: Project scaffolding, editorial theme configuration (Tailwind, typography, layout shell), and Prisma schema setup
+- [x] Plan 1.2: NextAuth Google OAuth integration with `@rvce.edu.in` domain verification and role-based session management
 
 ---
 
@@ -78,7 +78,7 @@ updated: 2026-09-25T19:28:00+05:30
 
 | Phase | Status | Plans | Complete |
 |-------|--------|-------|----------|
-| 1: Foundation & Auth | ⬜ Not Started | 0/2 | 0% |
+| 1: Foundation & Auth | ✅ Complete | 2/2 | 100% |
 | 2: Feed & Discovery | ⬜ Not Started | 0/3 | 0% |
 | 3: Calendar & Reminders | ⬜ Not Started | 0/3 | 0% |
 | 4: Portals & Polish | ⬜ Not Started | 0/3 | 0% |
@@ -89,7 +89,7 @@ updated: 2026-09-25T19:28:00+05:30
 
 | Phase | Started | Completed | Duration |
 |-------|---------|-----------|----------|
-| 1 | — | — | — |
+| 1 | 2026-09-25 19:41 | 2026-09-25 19:50 | 9 mins |
 | 2 | — | — | — |
 | 3 | — | — | — |
 | 4 | — | — | — |

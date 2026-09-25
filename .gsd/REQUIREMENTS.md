@@ -1,6 +1,6 @@
 ---
 milestone: v1.0
-updated: 2026-09-25T19:28:00+05:30
+updated: 2026-09-25T19:51:30+05:30
 ---
 
 # Requirements — ORBIT v1.0
@@ -14,9 +14,9 @@ Requirements derived from [SPEC.md](file:///Users/salonisingh/Desktop/ORBIT/.gsd
 
 | ID | Requirement | Source | Phase | Status |
 |----|-------------|--------|-------|--------|
-| REQ-01 | NextAuth Google OAuth login restricted to `@rvce.edu.in` domain | SPEC Goal 3 | 1 | Pending |
-| REQ-02 | Role-based access control (Student, Club Owner, Main Admin) | SPEC Goal 2 | 1 | Pending |
-| REQ-03 | Database schema for Users, Clubs, Opportunities, Bookmarks, Reminders, and Notifications | SPEC Goal 1, 2 | 1 | Pending |
+| REQ-01 | NextAuth Google OAuth login restricted to `@rvce.edu.in` domain | SPEC Goal 3 | 1 | Complete |
+| REQ-02 | Role-based access control (Student, Club Owner, Main Admin) | SPEC Goal 2 | 1 | Complete |
+| REQ-03 | Database schema for Users, Clubs, Opportunities, Bookmarks, Reminders, and Notifications | SPEC Goal 1, 2 | 1 | Complete |
 | REQ-04 | Opportunity browse feed with category filters (Hackathons, CTFs, Contests, Workshops, Internships, Competitions) | SPEC Goal 1 | 2 | Pending |
 | REQ-05 | Full-text search and deadline/date sorting for opportunities | SPEC Goal 1 | 2 | Pending |
 | REQ-06 | Opportunity detail view with description, dates, deadlines, eligibility, and official registration link | SPEC Goal 1 | 2 | Pending |
@@ -34,10 +34,10 @@ Requirements derived from [SPEC.md](file:///Users/salonisingh/Desktop/ORBIT/.gsd
 
 | ID | Requirement | Category | Phase | Status |
 |----|-------------|----------|-------|--------|
-| NFR-01 | Editorial design system: Warm ivory paper background, dark brown serif headings, sans-serif body, muted gold accents | UX / Design | 1, 4 | Pending |
-| NFR-02 | Responsive layout optimized for desktop, tablet, and mobile browsers | UX | All | Pending |
+| NFR-01 | Editorial design system: Warm ivory paper background, dark brown serif headings, sans-serif body, muted gold accents | UX / Design | 1, 4 | Complete |
+| NFR-02 | Responsive layout optimized for desktop, tablet, and mobile browsers | UX | All | In Progress |
 | NFR-03 | Sub-200ms query response time for feed and filtering through Prisma indexes | Performance | 2 | Pending |
-| NFR-04 | Data security: Strict multi-tenant isolation ensuring Club Owners can never mutate another club's opportunities | Security | 1, 4 | Pending |
+| NFR-04 | Data security: Strict multi-tenant isolation ensuring Club Owners can never mutate another club's opportunities | Security | 1, 4 | In Progress |
 
 ---
 
@@ -45,9 +45,20 @@ Requirements derived from [SPEC.md](file:///Users/salonisingh/Desktop/ORBIT/.gsd
 
 | ID | Constraint | Source | Impact |
 |----|------------|--------|--------|
-| CON-01 | Login strictly restricted to `@rvce.edu.in` Google Workspace accounts | PRD Section 3 | Auth and User registration pipeline |
-| CON-02 | Next.js (React), Tailwind CSS, PostgreSQL via Prisma ORM | PRD Section 4 | Architecture and dependencies |
+| CON-01 | Login strictly restricted to `@rvce.edu.in` Google Workspace accounts | PRD Section 3 | Auth and User registration pipeline (Enforced) |
+| CON-02 | Next.js (React), Tailwind CSS, PostgreSQL via Prisma ORM | PRD Section 4 | Architecture and dependencies (Configured) |
 | CON-03 | Email dispatch via Resend API | User preference | Transactional notification pipeline |
+
+---
+
+## Traceability Matrix
+
+| Requirement | Plans | Tests | Status |
+|-------------|-------|-------|--------|
+| REQ-01 | 1.2 | `test/auth-guard.mjs` (6 test cases) | Verified |
+| REQ-02 | 1.1, 1.2 | Role augmentation & badge rendering | Verified |
+| REQ-03 | 1.1 | `npx prisma generate` | Verified |
+| NFR-01 | 1.1 | Visual styling tokens in `tailwind.config.ts` | Verified |
 
 ---
 
