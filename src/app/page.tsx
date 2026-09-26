@@ -41,7 +41,7 @@ export default async function HomePage() {
           </div>
 
           <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-orbit-brown leading-[1.12]">
-            Discover what's happening.
+            Discover what&apos;s happening.
             <br />
             <span className="italic font-normal text-orbit-subtle">Never miss a deadline.</span>
           </h1>

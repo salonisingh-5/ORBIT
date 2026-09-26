@@ -1,45 +1,31 @@
 ---
-updated: 2026-09-26T18:47:00+05:30
+updated: 2026-09-26T18:54:00+05:30
 ---
 
 # Project State — ORBIT
 
 ## Current Position
 
-- **Milestone:** v1.0
-- **Phase:** 4 - Club Owner & Admin Portals + Polish
-- **Plan:** Plan 4.2 completed & verified
-- **Status:** verified
+- **Milestone:** v1.0 (COMPLETE)
+- **Phase:** 4 - Club Owner & Admin Portals + Polish (COMPLETE)
+- **Plan:** Plan 4.3 completed & verified
+- **Status:** ready for review / uncommitted as requested
 
 ## Last Action
 
-Completed and verified Plan 4.2 (Main Admin Dashboard, Club Provisioning, and Opportunity Moderation):
-1. **Admin Service & Data Layer (`src/lib/admin-portal.ts`)**:
-   - `getAdminMetrics`, `getAllClubs`, `createClub`, `updateClub`.
-   - `getAllUsers`, `updateUserRoleAndClub`.
-   - `getAdminOpportunities`, `moderateOpportunity`, `updateOpportunityAsAdmin`, `deleteOpportunityAsAdmin`.
-   - Dual-mode support (Prisma DB + in-memory fallback for offline dev/build).
-2. **REST API Endpoints (`src/app/api/admin/*`)**:
-   - `GET /api/admin/clubs` & `POST /api/admin/clubs`: List and register campus clubs.
-   - `PUT /api/admin/clubs/[id]`: Modify club details.
-   - `GET /api/admin/users`: List all authenticated RVCE users.
-   - `PATCH /api/admin/users`: Update user role (`STUDENT`, `CLUB_OWNER`, `ADMIN`) and club linkage.
-   - `GET /api/admin/opportunities`: List all opportunities with status filter and metrics.
-   - `PATCH /api/admin/opportunities/[id]`: Moderate status (`APPROVED`, `REJECTED`, etc.).
-   - `PUT /api/admin/opportunities/[id]`: Edit opportunity details as admin.
-   - `DELETE /api/admin/opportunities/[id]`: Delete opportunity across any club.
-   - All admin endpoints enforce `ADMIN` role with HTTP 403 Forbidden for students and club owners.
-3. **Admin Console UI (`src/app/admin/page.tsx`, `src/components/admin/*`)**:
-   - `AdminDashboardView`: 3-tab layout (Opportunity Moderation, Club Registry, User Roles & Access).
-   - `ClubModal`: Dialog to create/edit clubs with URL slug validation.
-   - `AdminAuthGuard`: Handles 403 Forbidden for non-admins and one-click login for unauthenticated visitors.
+Completed and verified Plan 4.3 (Editorial UI Polish, Responsive Refinement & Release Verification):
+1. **Responsive Mobile Navigation (`src/components/layout/mobile-nav.tsx`)**:
+   - Added sticky bottom bar for mobile screens (`md:hidden`) with Feed, Calendar, and Saved links.
+   - Preserved content visibility with `pb-16 md:pb-0` padding on main container.
+2. **Editorial Polish**:
+   - Enhanced global footer with platform navigation and institutional credit.
+   - Refined hero banner typography and JSX entities.
+3. **Quality & Security Audit (`test/release-verification.test.mjs`)**:
+   - 100% compliance verified on `rel="noopener noreferrer"` across all external links.
+   - Seed data integrity and RBAC role boundaries verified.
 4. **Verification**:
-   - `npm test`: 42/42 tests passing across all 8 test suites.
+   - `npm test`: 46/46 tests passing across all 9 test suites.
    - `npm run build`: Exit code 0, 15 routes compiled cleanly.
-
-## Next Steps
-
-1. Do NOT start Plan 4.3 until instructed.
 
 ## Active Decisions
 
@@ -52,7 +38,8 @@ Decisions made that affect current work:
 | [DECISION-003] Tech Stack | Next.js App Router, Tailwind CSS, Prisma ORM, PostgreSQL | 2026-09-25 | All Phases |
 | [DECISION-004] Design Aesthetic | Editorial classic beige (warm ivory, dark brown serif, muted gold) | 2026-09-25 | UI & Layouts |
 | [DECISION-005] Club Ownership | Server-side scoped validation preventing cross-club mutations | 2026-09-26 | Phase 4 (Complete) |
-| [DECISION-006] Central Admin | Unified moderation queue, club registry, and user role provisioning | 2026-09-26 | Phase 4 (Plan 4.2) |
+| [DECISION-006] Central Admin | Unified moderation queue, club registry, and user role provisioning | 2026-09-26 | Phase 4 (Complete) |
+| [DECISION-007] Mobile Ergonomics | Persistent bottom navigation bar on mobile viewports | 2026-09-26 | Layout |
 
 ## Blockers
 
@@ -60,4 +47,4 @@ None.
 
 ## Concerns
 
-None. Plan 4.2 completed and verified.
+None. All 4 phases and plans for ORBIT v1.0 are complete and verified.

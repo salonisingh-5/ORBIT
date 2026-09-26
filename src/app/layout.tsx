@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Navbar } from "@/components/layout/navbar";
+import { MobileNav } from "@/components/layout/mobile-nav";
 import { SessionProvider } from "@/components/providers/session-provider";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "ORBIT — Opportunities Around You | RVCE",
@@ -19,18 +21,37 @@ export default function RootLayout({
       <body className="min-h-screen flex flex-col bg-orbit-ivory text-orbit-brown antialiased selection:bg-orbit-gold-light selection:text-orbit-brown">
         <SessionProvider>
           <Navbar />
-          <main className="flex-1 flex flex-col">{children}</main>
+          <main className="flex-1 flex flex-col pb-16 md:pb-0">{children}</main>
           <footer className="border-t border-orbit-border bg-orbit-paper/40 py-8 text-center text-xs text-orbit-muted">
-            <div className="mx-auto max-w-7xl px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-2">
-                <span className="font-serif font-semibold text-orbit-brown">ORBIT</span>
-                <span>— Designed for RVCE Students & Clubs</span>
+                <span className="font-serif font-bold text-orbit-brown">ORBIT</span>
+                <span>— RVCE Campus Opportunities & Hackathons</span>
               </div>
-              <p className="text-[11px] text-orbit-muted">
-                Built with precision. Classic beige editorial aesthetic.
-              </p>
+              <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] text-orbit-subtle">
+                <Link href="/" className="hover:text-orbit-brown transition-colors">
+                  Feed
+                </Link>
+                <span>•</span>
+                <Link href="/calendar" className="hover:text-orbit-brown transition-colors">
+                  Calendar
+                </Link>
+                <span>•</span>
+                <Link href="/saved" className="hover:text-orbit-brown transition-colors">
+                  Saved
+                </Link>
+                <span>•</span>
+                <Link href="/club-dashboard" className="hover:text-orbit-brown transition-colors">
+                  Club Portal
+                </Link>
+                <span>•</span>
+                <Link href="/admin" className="hover:text-orbit-brown transition-colors">
+                  Admin Console
+                </Link>
+              </div>
             </div>
           </footer>
+          <MobileNav />
         </SessionProvider>
       </body>
     </html>
