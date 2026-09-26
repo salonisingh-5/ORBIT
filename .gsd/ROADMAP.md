@@ -25,37 +25,37 @@ updated: 2026-09-25T19:28:00+05:30
 ## Phases
 
 ### Phase 1: Foundation & Authentication
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 **Objective:** Scaffold Next.js application, configure Tailwind editorial design tokens (warm ivory, dark brown serif typography, muted gold), define Prisma PostgreSQL database schema (Users, Roles, Clubs, Opportunities, Bookmarks, Notifications), and implement NextAuth Google OAuth strictly restricted to `@rvce.edu.in`.
 **Requirements:** REQ-01, REQ-02, REQ-03, NFR-01, NFR-04, CON-01, CON-02
 
 **Plans:**
-- [ ] Plan 1.1: Project scaffolding, editorial theme configuration (Tailwind, typography, layout shell), and Prisma schema setup
-- [ ] Plan 1.2: NextAuth Google OAuth integration with `@rvce.edu.in` domain verification and role-based session management
+- [x] Plan 1.1: Project scaffolding, editorial theme configuration (Tailwind, typography, layout shell), and Prisma schema setup
+- [x] Plan 1.2: NextAuth Google OAuth integration with `@rvce.edu.in` domain verification and role-based session management
 
 ---
 
 ### Phase 2: Opportunity Feed & Discovery
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete
 **Objective:** Implement the core student-facing discovery experience: searchable, category-filtered opportunity feed (Hackathons, CTFs, Coding Contests, Workshops, Internships, Competitions), comprehensive opportunity detail pages with official registration links, and personal bookmarking system.
 **Depends on:** Phase 1
 **Requirements:** REQ-04, REQ-05, REQ-06, REQ-07, NFR-02, NFR-03
 
 **Plans:**
-- [ ] Plan 2.1: Opportunity data access layer, search & filtering API, and seed opportunities
-- [ ] Plan 2.2: Opportunity feed UI, category badges, search/sort controls, and detail modal/page
-- [ ] Plan 2.3: Bookmark/save functionality with student personal list view
+- [x] Plan 2.1: Opportunity data access layer, search & filtering API, and seed opportunities
+- [x] Plan 2.2: Opportunity feed UI, category badges, search/sort controls, and detail modal/page
+- [x] Plan 2.3: Bookmark/save functionality with student personal list view
 
 ---
 
 ### Phase 3: Calendar & Reminders Engine
-**Status:** ⬜ Not Started
+**Status:** 🟡 In Progress
 **Objective:** Build the interactive calendar view for deadlines and event dates (with All vs. Saved filtering), develop the in-app notification center, and implement the automated email reminder pipeline via Resend for approaching deadlines.
 **Depends on:** Phase 2
 **Requirements:** REQ-08, REQ-09, REQ-10, CON-03
 
 **Plans:**
-- [ ] Plan 3.1: Centralized calendar view mapping event schedules and registration deadlines
+- [x] Plan 3.1: Centralized calendar view mapping event schedules and registration deadlines
 - [ ] Plan 3.2: In-app notification bell & feed for upcoming deadlines
 - [ ] Plan 3.3: Resend email reminder dispatch worker/service for approaching saved deadlines
 

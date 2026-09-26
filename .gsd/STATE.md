@@ -1,5 +1,5 @@
 ---
-updated: 2026-09-26T17:42:00+05:30
+updated: 2026-09-26T18:06:00+05:30
 ---
 
 # Project State — ORBIT
@@ -7,37 +7,33 @@ updated: 2026-09-26T17:42:00+05:30
 ## Current Position
 
 - **Milestone:** v1.0
-- **Phase:** 2 - Opportunity Feed & Discovery
-- **Plan:** Plan 2.3 completed & verified (Phase 2 plans all complete: 2.1, 2.2, 2.3)
+- **Phase:** 3 - Calendar & Reminders Engine
+- **Plan:** Plan 3.1 completed & verified (Centralized Calendar View)
 - **Status:** verified
 
 ## Last Action
 
-Completed and verified Plan 2.3 (Bookmark/Save Functionality and Personal Collection View):
-1. **Bookmark API Endpoint** (`src/app/api/bookmarks/route.ts`):
-   - `GET`: verifies session via `getCurrentUser()`, returns `{ success: true, authenticated: true, bookmarkedIds }` (401 if unauthenticated).
-   - `POST`: verifies session (returns 401 if unauthenticated), toggles bookmark via `toggleBookmark()`.
-2. **Bookmark Persistence & Resilience** (`src/lib/bookmarks.ts`):
-   - Implemented `toggleBookmark`, `getUserBookmarkedIds`, and `getUserSavedOpportunities` with Prisma queries and graceful memory fallback.
-3. **Interactive BookmarkButton** (`src/components/opportunities/bookmark-button.tsx`):
-   - Integrated into `OpportunityCard` and `OpportunityDetail`.
-   - Triggers `SignInModal` when unauthenticated users attempt to save.
-   - Optimistically toggles state for authenticated users with background API sync.
-4. **Saved Opportunities Page** (`src/app/saved/page.tsx` & `src/components/opportunities/saved-feed.tsx`):
-   - Unauthenticated state: displays `SavedAuthCta` explaining benefits and providing one-click Sign-In modal trigger.
-   - Authenticated state with saved items: renders `SavedFeed` with deadline countdowns, registration links, and instant unsave action.
-   - Authenticated state with 0 items: renders editorial empty state with "Explore Opportunities" CTA.
-5. **Feed & Detail Integration**:
-   - `src/app/page.tsx` and `src/app/opportunities/[slug]/page.tsx` pass user bookmark status directly from the server.
-6. **Verification**:
-   - `npm test`: 15/15 tests passing across `auth-guard`, `opportunity-feed`, and `bookmarks` suites.
-   - `npm run build`: Exit code 0, 7 routes compiled successfully with dynamic `/api/bookmarks` and `/saved` routes.
+Completed and verified Plan 3.1:
+1. **Calendar Engine** (`src/lib/calendar.ts`):
+   - Grid cell generator `getCalendarDays` supporting month padding, leap years, and Sunday start.
+   - Schedule lookup `getOpportunitiesForDate` matching registration deadlines and active event date ranges.
+   - Chronological agenda grouping helper `getAgendaItems`.
+2. **Calendar UI Components**:
+   - `src/components/calendar/calendar-month-grid.tsx`: 7-column month grid with day numbers, deadline chips, event dots, and date selection.
+   - `src/components/calendar/calendar-date-inspector.tsx`: detailed day schedule drawer showing deadlines, club bylines, links, and bookmark toggles.
+   - `src/components/calendar/calendar-agenda-list.tsx`: chronological timeline list view.
+   - `src/components/calendar/calendar-view.tsx`: client controller with month/year navigation, today button, "All" vs "Saved" filter, and "Month Grid" vs "Agenda List" toggles.
+3. **Route Integration** (`src/app/calendar/page.tsx`):
+   - Server-side data fetching for opportunities and active user's saved IDs.
+   - Editorial header and full responsive presentation.
+4. **Verification**:
+   - `npm test`: 20/20 tests passing across all 4 suites (`auth-guard`, `opportunity-feed`, `bookmarks`, `calendar`).
+   - `npm run build`: Exit code 0, 7 routes compiled successfully with `/calendar` as a dynamic server-rendered page.
 
 ## Next Steps
 
-1. Review and commit Plan 2.3 changes according to GSD git workflow.
-2. Complete Phase 2 verification (`.gsd/phases/2/VERIFICATION.md`).
-3. Prepare for Phase 3 (Calendar & Reminders Engine).
+1. Commit and push Plan 3.1.
+2. Plan 3.2: In-app notification bell & feed for upcoming deadlines.
 
 ## Active Decisions
 
@@ -56,8 +52,4 @@ None.
 
 ## Concerns
 
-None. All Phase 2 plans are implemented and verified.
-
-## Session Context
-
-Plan 2.3 implementation and verification complete. Working tree verified with `npm test` and `npm run build`. Ready for user review before committing.
+None. Calendar view verified with resilient fallback.

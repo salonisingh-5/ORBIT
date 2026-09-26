@@ -1,32 +1,61 @@
-import { Calendar as CalendarIcon, Sparkles } from "lucide-react";
+import { getOpportunities } from "@/lib/opportunities";
+import { getCurrentUser } from "@/lib/session";
+import { getUserBookmarkedIds } from "@/lib/bookmarks";
+import { CalendarView } from "@/components/calendar/calendar-view";
+import { SerializedOpportunity } from "@/components/opportunities/opportunity-card";
+import { Sparkles, Calendar as CalendarIcon } from "lucide-react";
+import type { Metadata } from "next";
 
-export default function CalendarPage() {
+export const metadata: Metadata = {
+  title: "Campus Opportunity Calendar | ORBIT RVCE",
+  description: "Interactive timeline of upcoming hackathon deadlines, contest dates, and workshops across RVCE.",
+};
+
+export default async function CalendarPage() {
+  const user = await getCurrentUser();
+  const [opportunities, bookmarkedIds] = await Promise.all([
+    getOpportunities({ sortBy: "deadline" }),
+    user?.id ? getUserBookmarkedIds(user.id) : Promise.resolve([]),
+  ]);
+
+  const serialized: SerializedOpportunity[] = opportunities.map((opp) => ({
+    id: opp.id,
+    title: opp.title,
+    slug: opp.slug,
+    description: opp.description,
+    category: opp.category,
+    officialUrl: opp.officialUrl,
+    deadline: opp.deadline.toISOString(),
+    startDate: opp.startDate ? opp.startDate.toISOString() : null,
+    endDate: opp.endDate ? opp.endDate.toISOString() : null,
+    location: opp.location,
+    status: opp.status,
+    clubId: opp.clubId,
+    createdAt: opp.createdAt.toISOString(),
+    club: opp.club,
+  }));
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8 flex-1 space-y-8">
+      {/* Editorial Header */}
       <div className="border-b border-orbit-border pb-6">
-        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-orbit-gold">
-          <Sparkles className="h-3.5 w-3.5" />
-          <span>Timeline View</span>
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-orbit-gold-dark mb-2">
+          <Sparkles className="h-3.5 w-3.5 text-orbit-gold" />
+          <span>Academic & Opportunity Timeline</span>
         </div>
-        <h1 className="mt-2 font-serif text-3xl font-bold tracking-tight text-orbit-brown">
+        <h1 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight text-orbit-brown">
           Campus Opportunity Calendar
         </h1>
-        <p className="mt-2 text-sm text-orbit-subtle">
-          Visualize registration deadlines, submission windows, and event dates across all RVCE clubs.
+        <p className="mt-2 text-xs sm:text-sm text-orbit-subtle max-w-2xl leading-relaxed">
+          Track upcoming registration deadlines, hackathon countdowns, and club workshops across RVCE. Toggle between all opportunities and your personal saved list.
         </p>
       </div>
 
-      <div className="mt-12 rounded-2xl border border-dashed border-orbit-border bg-orbit-paper/30 p-16 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-orbit-paper text-orbit-gold mb-4 border border-orbit-border">
-          <CalendarIcon className="h-6 w-6" />
-        </div>
-        <h3 className="font-serif text-lg font-semibold text-orbit-brown">
-          Interactive Calendar (Scheduled for Phase 3)
-        </h3>
-        <p className="mx-auto mt-2 max-w-md text-sm text-orbit-subtle">
-          This central calendar view with All vs. Saved opportunity deadline filtering will activate in Phase 3.
-        </p>
-      </div>
+      {/* Interactive Calendar Component */}
+      <CalendarView
+        initialOpportunities={serialized}
+        bookmarkedOpportunityIds={bookmarkedIds}
+      />
     </div>
   );
 }
