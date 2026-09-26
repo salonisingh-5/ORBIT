@@ -1,60 +1,36 @@
 ---
-updated: 2026-09-25T23:58:30+05:30
+updated: 2026-09-26T17:13:30+05:30
 ---
 
 # Project State — ORBIT
 
 ## Current Position
 
-- **Phase**: 2 - Opportunity Feed & Discovery
-- **Task**: Plan 2.2 — Feed UI, category badges, detail pages (not started)
-- **Status**: Paused at 2026-09-25T23:58:30+05:30
+- **Milestone:** v1.0
+- **Phase:** 2 - Opportunity Feed & Discovery
+- **Plan:** Ready for Plan 2.3 execution (Bookmark/Save functionality & `/saved` page)
+- **Status:** ready_for_execution
 
-## Last Session Summary
+## Last Action
 
-Plan 2.1 executed inline (subagent delegation unavailable). Seed runner, opportunity query helpers, and `GET /api/opportunities` with Prisma + in-memory seed fallback. `npm run build` passed; `/api/opportunities` is a dynamic route.
-
-## In-Progress Work
-
-- Files modified: none uncommitted at pause
-- Tests status: build passing; Plan 2.2 UI not implemented
-
-## Blockers
-
-None.
-
-## Context Dump
-
-### Decisions Made
-
-- Prisma seed uses `tsx prisma/seed.ts` (not ts-node ESM loader)
-- Dual-mode data access: Prisma first, `SEED_OPPORTUNITIES` on connection failure
-- Inline execution: one plan per session after `/pause`
-
-### Approaches Tried
-
-- Task subagent as gsd-executor: failed (named models unavailable on this plan) → executed Plan 2.1 inline
-
-### Current Hypothesis
-
-Plan 2.2 can consume `getOpportunities()` / `getOpportunityBySlug()` directly; serialize Date fields before passing to client components.
-
-### Files of Interest
-
-- `src/lib/opportunities.ts`: query API for the feed
-- `src/lib/seed-data.ts`: 9 opportunities, 5 clubs
-- `src/app/page.tsx`: static placeholder feed to replace
-- `.gsd/phases/2/2.2-PLAN.md`: next plan (wave 2)
-- `.gsd/phases/2/2.3-PLAN.md`: bookmark API after 2.2
-- `src/components/auth/sign-in-modal.tsx`: bookmark auth prompt in 2.3
+Completed Plan 2.2 execution:
+- Created `src/lib/date-utils.ts` with deadline countdown calculations and event formatting.
+- Created `src/components/opportunities/category-filter.tsx` with active pills and count indicators.
+- Created `src/components/opportunities/opportunity-card.tsx` with editorial beige styling, club byline, category pill, urgent deadline indicator, details link, and application CTA.
+- Created `src/components/opportunities/opportunity-feed.tsx` with client-side instant search, category filtering, sorting, and empty state.
+- Integrated `OpportunityFeed` into `src/app/page.tsx` with server-side data loading from `getOpportunities()`.
+- Built `src/components/opportunities/opportunity-detail.tsx` and dynamic page `src/app/opportunities/[slug]/page.tsx` with SEO metadata, schedule widget, club profile, and registration link.
+- Created `test/opportunity-feed.test.mjs` and unified test runner in `test/run-all.mjs`.
+- Verified build and tests: `npm test` (10/10 passing) and `npm run build` (6 static + 3 dynamic routes compiled cleanly).
 
 ## Next Steps
 
-1. Execute Plan 2.2: OpportunityCard, CategoryFilter, OpportunityFeed, wire `src/app/page.tsx`.
-2. Build `/opportunities/[slug]` detail page with `notFound()` and SEO metadata.
-3. Then Plan 2.3: bookmark API, optimistic BookmarkButton, `/saved` collection.
+1. Execute Plan 2.3: Bookmark API endpoint (`/api/bookmarks`), optimistic `BookmarkButton` client component, and student personal saved collection page at `/saved`.
+2. Run verification for Plan 2.3 and complete Phase 2 verification (`.gsd/phases/2/VERIFICATION.md`).
 
 ## Active Decisions
+
+Decisions made that affect current work:
 
 | Decision | Choice | Made | Affects |
 |----------|--------|------|---------|
@@ -63,6 +39,14 @@ Plan 2.2 can consume `getOpportunities()` / `getOpportunityBySlug()` directly; s
 | [DECISION-003] Tech Stack | Next.js App Router, Tailwind CSS, Prisma ORM, PostgreSQL | 2026-09-25 | All Phases |
 | [DECISION-004] Design Aesthetic | Editorial classic beige (warm ivory, dark brown serif, muted gold) | 2026-09-25 | UI & Layouts |
 
+## Blockers
+
+None.
+
+## Concerns
+
+None. Feed and detail routes are operational with graceful fallback.
+
 ## Session Context
 
-Paused after Plan 2.1 so Plan 2.2 starts on a fresh context.
+Plan 2.2 is complete and verified. Ready for Plan 2.3.
