@@ -49,7 +49,7 @@ updated: 2026-09-25T19:28:00+05:30
 ---
 
 ### Phase 3: Calendar & Reminders Engine
-**Status:** 🟡 In Progress
+**Status:** ✅ Complete
 **Objective:** Build the interactive calendar view for deadlines and event dates (with All vs. Saved filtering), develop the in-app notification center, and implement the automated email reminder pipeline via Resend for approaching deadlines.
 **Depends on:** Phase 2
 **Requirements:** REQ-08, REQ-09, REQ-10, CON-03
@@ -57,7 +57,7 @@ updated: 2026-09-25T19:28:00+05:30
 **Plans:**
 - [x] Plan 3.1: Centralized calendar view mapping event schedules and registration deadlines
 - [x] Plan 3.2: In-app notification bell & feed for upcoming deadlines
-- [ ] Plan 3.3: Resend email reminder dispatch worker/service for approaching saved deadlines
+- [x] Plan 3.3: Resend email reminder dispatch worker/service for approaching saved deadlines
 
 ---
 
