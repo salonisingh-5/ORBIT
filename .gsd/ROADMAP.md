@@ -56,7 +56,7 @@ updated: 2026-09-25T19:28:00+05:30
 
 **Plans:**
 - [x] Plan 3.1: Centralized calendar view mapping event schedules and registration deadlines
-- [ ] Plan 3.2: In-app notification bell & feed for upcoming deadlines
+- [x] Plan 3.2: In-app notification bell & feed for upcoming deadlines
 - [ ] Plan 3.3: Resend email reminder dispatch worker/service for approaching saved deadlines
 
 ---

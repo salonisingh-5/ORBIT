@@ -1,5 +1,5 @@
 ---
-updated: 2026-09-26T18:06:00+05:30
+updated: 2026-09-26T18:10:00+05:30
 ---
 
 # Project State — ORBIT
@@ -8,32 +8,33 @@ updated: 2026-09-26T18:06:00+05:30
 
 - **Milestone:** v1.0
 - **Phase:** 3 - Calendar & Reminders Engine
-- **Plan:** Plan 3.1 completed & verified (Centralized Calendar View)
+- **Plan:** Plan 3.2 completed & verified (In-App Notification Center Bell & Feed)
 - **Status:** verified
 
 ## Last Action
 
-Completed and verified Plan 3.1:
-1. **Calendar Engine** (`src/lib/calendar.ts`):
-   - Grid cell generator `getCalendarDays` supporting month padding, leap years, and Sunday start.
-   - Schedule lookup `getOpportunitiesForDate` matching registration deadlines and active event date ranges.
-   - Chronological agenda grouping helper `getAgendaItems`.
-2. **Calendar UI Components**:
-   - `src/components/calendar/calendar-month-grid.tsx`: 7-column month grid with day numbers, deadline chips, event dots, and date selection.
-   - `src/components/calendar/calendar-date-inspector.tsx`: detailed day schedule drawer showing deadlines, club bylines, links, and bookmark toggles.
-   - `src/components/calendar/calendar-agenda-list.tsx`: chronological timeline list view.
-   - `src/components/calendar/calendar-view.tsx`: client controller with month/year navigation, today button, "All" vs "Saved" filter, and "Month Grid" vs "Agenda List" toggles.
-3. **Route Integration** (`src/app/calendar/page.tsx`):
-   - Server-side data fetching for opportunities and active user's saved IDs.
-   - Editorial header and full responsive presentation.
-4. **Verification**:
-   - `npm test`: 20/20 tests passing across all 4 suites (`auth-guard`, `opportunity-feed`, `bookmarks`, `calendar`).
-   - `npm run build`: Exit code 0, 7 routes compiled successfully with `/calendar` as a dynamic server-rendered page.
+Completed and verified Plan 3.2:
+1. **Notification Data Layer** (`src/lib/notifications.ts`):
+   - Created `getUserNotifications`, `getUnreadNotificationCount`, `markNotificationAsRead`, `markAllNotificationsAsRead`.
+   - Dual-mode persistence: Prisma database queries with graceful in-memory fallback.
+   - Automatic generation of deadline reminders for student's bookmarked opportunities.
+2. **REST API Endpoint** (`src/app/api/notifications/route.ts`):
+   - `GET`: verifies session via `getCurrentUser()`, returns notifications and unread count (401 if unauthenticated).
+   - `PATCH`: verifies session, supports marking single item or all items as read.
+3. **Frontend Bell & Dropdown UI** (`src/components/notifications/notification-bell.tsx`):
+   - Bell icon with unread count pill badge and subtle pulse animation.
+   - Dropdown menu showing unread count, "Mark all read" button, and list of notifications.
+   - Direct link to opportunity detail page for deadline reminder items.
+   - Unauthenticated guard: opening bell triggers `SignInModal` with RVCE domain notice.
+4. **Global Navbar Integration** (`src/components/layout/navbar.tsx`):
+   - Mounted `NotificationBell` in global header alongside `UserMenu`.
+5. **Verification**:
+   - `npm test`: 25/25 tests passing across all 5 suites (`auth-guard`, `opportunity-feed`, `bookmarks`, `calendar`, `notifications`).
+   - `npm run build`: Exit code 0, 8 routes compiled successfully with `/api/notifications` as a dynamic route.
 
 ## Next Steps
 
-1. Commit and push Plan 3.1.
-2. Plan 3.2: In-app notification bell & feed for upcoming deadlines.
+1. Plan 3.3: Resend email reminder dispatch worker/service for approaching saved deadlines.
 
 ## Active Decisions
 
@@ -52,4 +53,4 @@ None.
 
 ## Concerns
 
-None. Calendar view verified with resilient fallback.
+None. All Phase 3.2 features tested and passing.

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Sparkles, Calendar, Bookmark, Compass } from "lucide-react";
 import { UserMenu } from "@/components/auth/user-menu";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 export function Navbar() {
   return (
@@ -54,6 +55,7 @@ export function Navbar() {
             <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-emerald-600"></span>
             @rvce.edu.in
           </div>
+          <NotificationBell />
           <UserMenu />
         </div>
       </div>
