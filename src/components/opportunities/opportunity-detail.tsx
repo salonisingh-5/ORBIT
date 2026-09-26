@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { formatDeadlineCountdown, formatEventDate, formatEventTime } from "@/lib/date-utils";
 import { SerializedOpportunity } from "@/components/opportunities/opportunity-card";
+import { BookmarkButton } from "@/components/opportunities/bookmark-button";
 
 interface OpportunityDetailProps {
   opportunity: SerializedOpportunity;
@@ -31,6 +32,7 @@ interface OpportunityDetailProps {
     description: string | null;
     websiteUrl: string | null;
   } | null;
+  isBookmarked?: boolean;
 }
 
 const CATEGORY_META: Record<
@@ -49,9 +51,9 @@ const CATEGORY_META: Record<
 export function OpportunityDetail({
   opportunity,
   clubDetails,
+  isBookmarked = false,
 }: OpportunityDetailProps) {
   const [copied, setCopied] = useState(false);
-  const [bookmarked, setBookmarked] = useState(false);
 
   const countdown = formatDeadlineCountdown(opportunity.deadline);
   const categoryInfo = CATEGORY_META[opportunity.category] || CATEGORY_META.OTHER;
@@ -108,18 +110,11 @@ export function OpportunityDetail({
           </button>
 
           {/* Bookmark Button */}
-          <button
-            type="button"
-            onClick={() => setBookmarked(!bookmarked)}
-            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
-              bookmarked
-                ? "border-orbit-gold bg-orbit-paper text-orbit-gold-dark shadow-sm"
-                : "border-orbit-border bg-orbit-card text-orbit-subtle hover:bg-orbit-paper hover:text-orbit-brown"
-            }`}
-          >
-            <Bookmark className={`h-3.5 w-3.5 ${bookmarked ? "fill-orbit-gold text-orbit-gold" : ""}`} />
-            <span>{bookmarked ? "Saved" : "Save"}</span>
-          </button>
+          <BookmarkButton
+            opportunityId={opportunity.id}
+            initialBookmarked={isBookmarked}
+            showLabel={true}
+          />
         </div>
       </nav>
 

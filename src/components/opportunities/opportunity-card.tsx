@@ -17,6 +17,7 @@ import {
   Award,
 } from "lucide-react";
 import { formatDeadlineCountdown } from "@/lib/date-utils";
+import { BookmarkButton } from "@/components/opportunities/bookmark-button";
 
 export interface SerializedOpportunity {
   id: string;
@@ -91,8 +92,6 @@ export function OpportunityCard({
   isBookmarked = false,
   onToggleBookmark,
 }: OpportunityCardProps) {
-  const [bookmarked, setBookmarked] = useState(isBookmarked);
-
   const countdown = formatDeadlineCountdown(opportunity.deadline);
   const categoryMeta = CATEGORY_STYLES[opportunity.category] || CATEGORY_STYLES.OTHER;
   const CategoryIcon = categoryMeta.icon;
@@ -105,15 +104,6 @@ export function OpportunityCard({
     .slice(0, 2)
     .join("")
     .toUpperCase();
-
-  const handleBookmarkClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setBookmarked(!bookmarked);
-    if (onToggleBookmark) {
-      onToggleBookmark(opportunity.id);
-    }
-  };
 
   return (
     <article className="group relative flex flex-col justify-between rounded-2xl border border-orbit-border bg-orbit-card p-6 shadow-sm transition-all duration-300 hover:border-orbit-gold/60 hover:shadow-md">
@@ -137,20 +127,12 @@ export function OpportunityCard({
               <span>{categoryMeta.label}</span>
             </span>
 
-            {/* Bookmark button slot */}
-            <button
-              type="button"
-              onClick={handleBookmarkClick}
-              className={`rounded-lg p-1.5 transition-colors ${
-                bookmarked
-                  ? "bg-orbit-gold-light/60 text-orbit-gold-dark"
-                  : "text-orbit-muted hover:bg-orbit-paper hover:text-orbit-brown"
-              }`}
-              title={bookmarked ? "Remove from saved" : "Save opportunity"}
-              aria-label={bookmarked ? "Remove from saved" : "Save opportunity"}
-            >
-              <Bookmark className={`h-4 w-4 ${bookmarked ? "fill-orbit-gold text-orbit-gold" : ""}`} />
-            </button>
+            {/* Bookmark button */}
+            <BookmarkButton
+              opportunityId={opportunity.id}
+              initialBookmarked={isBookmarked}
+              onToggle={() => onToggleBookmark?.(opportunity.id)}
+            />
           </div>
         </div>
 

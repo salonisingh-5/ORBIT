@@ -8,11 +8,13 @@ import { OpportunityCard, SerializedOpportunity } from "@/components/opportuniti
 interface OpportunityFeedProps {
   initialOpportunities: SerializedOpportunity[];
   categoryCounts?: Record<string, number>;
+  bookmarkedOpportunityIds?: string[];
 }
 
 export function OpportunityFeed({
   initialOpportunities,
   categoryCounts,
+  bookmarkedOpportunityIds,
 }: OpportunityFeedProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("ALL");
@@ -122,7 +124,11 @@ export function OpportunityFeed({
       {filteredOpportunities.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredOpportunities.map((opportunity) => (
-            <OpportunityCard key={opportunity.id} opportunity={opportunity} />
+            <OpportunityCard
+              key={opportunity.id}
+              opportunity={opportunity}
+              isBookmarked={bookmarkedOpportunityIds?.includes(opportunity.id)}
+            />
           ))}
         </div>
       ) : (

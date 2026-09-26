@@ -1,5 +1,5 @@
 ---
-updated: 2026-09-26T17:13:30+05:30
+updated: 2026-09-26T17:42:00+05:30
 ---
 
 # Project State — ORBIT
@@ -8,25 +8,36 @@ updated: 2026-09-26T17:13:30+05:30
 
 - **Milestone:** v1.0
 - **Phase:** 2 - Opportunity Feed & Discovery
-- **Plan:** Ready for Plan 2.3 execution (Bookmark/Save functionality & `/saved` page)
-- **Status:** ready_for_execution
+- **Plan:** Plan 2.3 completed & verified (Phase 2 plans all complete: 2.1, 2.2, 2.3)
+- **Status:** verified
 
 ## Last Action
 
-Completed Plan 2.2 execution:
-- Created `src/lib/date-utils.ts` with deadline countdown calculations and event formatting.
-- Created `src/components/opportunities/category-filter.tsx` with active pills and count indicators.
-- Created `src/components/opportunities/opportunity-card.tsx` with editorial beige styling, club byline, category pill, urgent deadline indicator, details link, and application CTA.
-- Created `src/components/opportunities/opportunity-feed.tsx` with client-side instant search, category filtering, sorting, and empty state.
-- Integrated `OpportunityFeed` into `src/app/page.tsx` with server-side data loading from `getOpportunities()`.
-- Built `src/components/opportunities/opportunity-detail.tsx` and dynamic page `src/app/opportunities/[slug]/page.tsx` with SEO metadata, schedule widget, club profile, and registration link.
-- Created `test/opportunity-feed.test.mjs` and unified test runner in `test/run-all.mjs`.
-- Verified build and tests: `npm test` (10/10 passing) and `npm run build` (6 static + 3 dynamic routes compiled cleanly).
+Completed and verified Plan 2.3 (Bookmark/Save Functionality and Personal Collection View):
+1. **Bookmark API Endpoint** (`src/app/api/bookmarks/route.ts`):
+   - `GET`: verifies session via `getCurrentUser()`, returns `{ success: true, authenticated: true, bookmarkedIds }` (401 if unauthenticated).
+   - `POST`: verifies session (returns 401 if unauthenticated), toggles bookmark via `toggleBookmark()`.
+2. **Bookmark Persistence & Resilience** (`src/lib/bookmarks.ts`):
+   - Implemented `toggleBookmark`, `getUserBookmarkedIds`, and `getUserSavedOpportunities` with Prisma queries and graceful memory fallback.
+3. **Interactive BookmarkButton** (`src/components/opportunities/bookmark-button.tsx`):
+   - Integrated into `OpportunityCard` and `OpportunityDetail`.
+   - Triggers `SignInModal` when unauthenticated users attempt to save.
+   - Optimistically toggles state for authenticated users with background API sync.
+4. **Saved Opportunities Page** (`src/app/saved/page.tsx` & `src/components/opportunities/saved-feed.tsx`):
+   - Unauthenticated state: displays `SavedAuthCta` explaining benefits and providing one-click Sign-In modal trigger.
+   - Authenticated state with saved items: renders `SavedFeed` with deadline countdowns, registration links, and instant unsave action.
+   - Authenticated state with 0 items: renders editorial empty state with "Explore Opportunities" CTA.
+5. **Feed & Detail Integration**:
+   - `src/app/page.tsx` and `src/app/opportunities/[slug]/page.tsx` pass user bookmark status directly from the server.
+6. **Verification**:
+   - `npm test`: 15/15 tests passing across `auth-guard`, `opportunity-feed`, and `bookmarks` suites.
+   - `npm run build`: Exit code 0, 7 routes compiled successfully with dynamic `/api/bookmarks` and `/saved` routes.
 
 ## Next Steps
 
-1. Execute Plan 2.3: Bookmark API endpoint (`/api/bookmarks`), optimistic `BookmarkButton` client component, and student personal saved collection page at `/saved`.
-2. Run verification for Plan 2.3 and complete Phase 2 verification (`.gsd/phases/2/VERIFICATION.md`).
+1. Review and commit Plan 2.3 changes according to GSD git workflow.
+2. Complete Phase 2 verification (`.gsd/phases/2/VERIFICATION.md`).
+3. Prepare for Phase 3 (Calendar & Reminders Engine).
 
 ## Active Decisions
 
@@ -45,8 +56,8 @@ None.
 
 ## Concerns
 
-None. Feed and detail routes are operational with graceful fallback.
+None. All Phase 2 plans are implemented and verified.
 
 ## Session Context
 
-Plan 2.2 is complete and verified. Ready for Plan 2.3.
+Plan 2.3 implementation and verification complete. Working tree verified with `npm test` and `npm run build`. Ready for user review before committing.

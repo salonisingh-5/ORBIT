@@ -1,12 +1,16 @@
 import { getOpportunities, getOpportunityStats } from "@/lib/opportunities";
+import { getCurrentUser } from "@/lib/session";
+import { getUserBookmarkedIds } from "@/lib/bookmarks";
 import { OpportunityFeed } from "@/components/opportunities/opportunity-feed";
 import { SerializedOpportunity } from "@/components/opportunities/opportunity-card";
 import { Sparkles } from "lucide-react";
 
 export default async function HomePage() {
-  const [opportunities, stats] = await Promise.all([
+  const user = await getCurrentUser();
+  const [opportunities, stats, bookmarkedIds] = await Promise.all([
     getOpportunities({ sortBy: "deadline" }),
     getOpportunityStats(),
+    user?.id ? getUserBookmarkedIds(user.id) : Promise.resolve([]),
   ]);
 
   const serializedOpportunities: SerializedOpportunity[] = opportunities.map((opp) => ({
@@ -53,6 +57,7 @@ export default async function HomePage() {
         <OpportunityFeed
           initialOpportunities={serializedOpportunities}
           categoryCounts={stats.byCategory}
+          bookmarkedOpportunityIds={bookmarkedIds}
         />
       </section>
     </div>

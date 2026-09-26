@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getOpportunityBySlug } from "@/lib/opportunities";
+import { getCurrentUser } from "@/lib/session";
+import { getUserBookmarkedIds } from "@/lib/bookmarks";
 import { SEED_CLUBS } from "@/lib/seed-data";
 import { OpportunityDetail } from "@/components/opportunities/opportunity-detail";
 import { SerializedOpportunity } from "@/components/opportunities/opportunity-card";
@@ -29,11 +31,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function OpportunityDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const opp = await getOpportunityBySlug(slug);
+  const [opp, user] = await Promise.all([
+    getOpportunityBySlug(slug),
+    getCurrentUser(),
+  ]);
 
   if (!opp) {
     notFound();
   }
+
+  const bookmarkedIds = user?.id ? await getUserBookmarkedIds(user.id) : [];
+  const isBookmarked = bookmarkedIds.includes(opp.id);
 
   // Find club metadata if available
   const clubMeta = opp.club?.slug
@@ -75,6 +83,7 @@ export default async function OpportunityDetailPage({ params }: PageProps) {
             }
           : null
       }
+      isBookmarked={isBookmarked}
     />
   );
 }
