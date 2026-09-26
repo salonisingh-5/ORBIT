@@ -68,7 +68,7 @@ updated: 2026-09-25T19:28:00+05:30
 **Requirements:** REQ-11, REQ-12, REQ-13, NFR-01, NFR-02, NFR-04
 
 **Plans:**
-- [x] Plan 4.1: Club Owner portal with scoped opportunity creation, editing, and status tracking
+- [ ] Plan 4.1: Club Owner portal with scoped opportunity creation, editing, and status tracking
 - [ ] Plan 4.2: Admin dashboard for club management, role assignment, and opportunity moderation
 - [ ] Plan 4.3: Editorial UI styling refinement, responsive polish, empty states, and release verification
 
@@ -78,10 +78,10 @@ updated: 2026-09-25T19:28:00+05:30
 
 | Phase | Status | Plans | Complete |
 |-------|--------|-------|----------|
-| 1: Foundation & Auth | 🟩 Complete | 2/2 | 100% |
-| 2: Feed & Discovery | 🟩 Complete | 3/3 | 100% |
-| 3: Calendar & Reminders | 🟩 Complete | 3/3 | 100% |
-| 4: Portals & Polish | 🟨 In Progress | 1/3 | 33% |
+| 1: Foundation & Auth | ⬜ Not Started | 0/2 | 0% |
+| 2: Feed & Discovery | ⬜ Not Started | 0/3 | 0% |
+| 3: Calendar & Reminders | ⬜ Not Started | 0/3 | 0% |
+| 4: Portals & Polish | ⬜ Not Started | 0/3 | 0% |
 
 ---
 
