@@ -154,9 +154,10 @@ export async function getAdminMetrics(): Promise<AdminMetrics> {
         rejectedCount: rejected,
       };
     }
-  } catch {
-    // Rely on memory fallback
-  }
+  } catch (error) {
+  console.error("[Admin Portal] Database operation failed:", error);
+  throw new Error("DATABASE_ERROR: Admin operation failed.");
+}
 
   return {
     totalUsers: memoryUsers.length,
@@ -194,9 +195,10 @@ export async function getAllClubs(): Promise<AdminClubRecord[]> {
         createdAt: c.createdAt,
       }));
     }
-  } catch {
-    // Memory fallback
-  }
+  } catch (error) {
+  console.error("[Admin Portal] Database operation failed:", error);
+  throw new Error("DATABASE_ERROR: Admin operation failed.");
+}
 
   return memoryClubs;
 }
@@ -326,9 +328,12 @@ export async function getAllUsers(): Promise<AdminUserRecord[]> {
         createdAt: u.createdAt,
       }));
     }
-  } catch {
-    // Memory fallback
-  }
+  } 
+   catch (error) {
+  console.error("[Admin Portal] Database operation failed:", error);
+  throw new Error("DATABASE_ERROR: Admin operation failed.");
+}
+  
 
   return memoryUsers;
 }
@@ -411,9 +416,10 @@ export async function getAdminOpportunities(
         createdAt: r.createdAt,
       }));
     }
-  } catch {
-    // Memory fallback
-  }
+  } catch (error) {
+  console.error("[Admin Portal] Database operation failed:", error);
+  throw new Error("DATABASE_ERROR: Admin operation failed.");
+}
 
   if (statusFilter && statusFilter !== "ALL") {
     return memoryOpportunities.filter((o) => o.status === statusFilter);

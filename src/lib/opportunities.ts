@@ -175,9 +175,10 @@ export async function getOpportunities(params: OpportunityQuery = {}): Promise<O
       orderBy: sortBy === "newest" ? { createdAt: "desc" } : { deadline: "asc" },
     });
     return rows.map(toRecord);
-  } catch {
-    return fromSeed(params);
-  }
+  } catch (error) {
+  console.error("[Opportunities] Database query failed:", error);
+  throw new Error("DATABASE_ERROR: Failed to load opportunities.");
+}
 }
 
 export async function getOpportunityBySlug(slug: string): Promise<OpportunityRecord | null> {
