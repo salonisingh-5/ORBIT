@@ -64,7 +64,11 @@ function slugify(text: string): string {
  * Resolves the club slug / id from user's clubId or email
  */
 export async function resolveUserClub(
-  user: { clubId?: string | null; email?: string | null }
+  user: { 
+     role: string;
+    clubId?: string | null; 
+    email?: string | null 
+}
 ) {
   if (user.clubId) {
     const clubById = await prisma.club.findUnique({
@@ -87,7 +91,11 @@ export async function resolveUserClub(
       return clubBySlug;
     }
   }
-
+  if (user.role === "CLUB_OWNER") {
+  throw new Error(
+    "CLUB_NOT_ASSIGNED: Club owner has no valid club assignment."
+  );
+}
   const defaultClub = await prisma.club.findUnique({
     where: {
       slug: "coding-club-rvce",
@@ -308,7 +316,10 @@ export async function updateClubOpportunity(
     startDate: input.startDate !== undefined ? (input.startDate ? new Date(input.startDate) : null) : existingOpp.startDate,
     endDate: input.endDate !== undefined ? (input.endDate ? new Date(input.endDate) : null) : existingOpp.endDate,
     location: input.location !== undefined ? input.location : existingOpp.location,
-    status: input.status || existingOpp.status,
+    status:
+      user.role === "ADMIN"
+        ? input.status || existingOpp.status
+        : existingOpp.status,
   };
 
   try {
