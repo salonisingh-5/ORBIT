@@ -28,7 +28,7 @@ export default async function ClubDashboardPage() {
   }
 
   // User is CLUB_OWNER or ADMIN
-  const club = resolveUserClub(user);
+  const club =  await resolveUserClub(user);
   const opportunities = await getClubOpportunities(club.id, user.role);
 
   return (

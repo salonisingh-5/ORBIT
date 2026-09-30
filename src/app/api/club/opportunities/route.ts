@@ -5,7 +5,7 @@ import {
   createClubOpportunity,
   resolveUserClub,
 } from "@/lib/club-portal";
-import { Category, OpportunityStatus } from "@prisma/client";
+import { Category } from "@prisma/client";
 
 const VALID_CATEGORIES = new Set<Category>([
   "HACKATHON",
@@ -22,21 +22,33 @@ export async function GET() {
 
   if (!user?.id) {
     return NextResponse.json(
-      { error: "Unauthorized. Please sign in with your official @rvce.edu.in account." },
+      {
+        error:
+          "Unauthorized. Please sign in with your official @rvce.edu.in account.",
+      },
       { status: 401 }
     );
   }
 
   if (user.role === "STUDENT") {
     return NextResponse.json(
-      { error: "Forbidden: Only club representatives and administrators can access the club portal." },
+      {
+        error:
+          "Forbidden: Only club representatives and administrators can access the club portal.",
+      },
       { status: 403 }
     );
   }
 
   try {
-    const club = resolveUserClub(user);
-    const opportunities = await getClubOpportunities(club.id, user.role);
+    // IMPORTANT: resolveUserClub is synchronous in the current
+    // club-portal implementation from the uploaded project.
+    const club = await resolveUserClub(user);
+
+    const opportunities = await getClubOpportunities(
+      club.id,
+      user.role
+    );
 
     return NextResponse.json({
       success: true,
@@ -45,8 +57,11 @@ export async function GET() {
     });
   } catch (error) {
     console.error("[API Club Opportunities] GET Error:", error);
+
     return NextResponse.json(
-      { error: "Failed to fetch club opportunities." },
+      {
+        error: "Failed to fetch club opportunities.",
+      },
       { status: 500 }
     );
   }
@@ -57,20 +72,27 @@ export async function POST(req: NextRequest) {
 
   if (!user?.id) {
     return NextResponse.json(
-      { error: "Unauthorized. Please sign in with your official @rvce.edu.in account." },
+      {
+        error:
+          "Unauthorized. Please sign in with your official @rvce.edu.in account.",
+      },
       { status: 401 }
     );
   }
 
   if (user.role !== "CLUB_OWNER" && user.role !== "ADMIN") {
     return NextResponse.json(
-      { error: "Forbidden: Students do not have permission to publish or manage opportunities." },
+      {
+        error:
+          "Forbidden: Students do not have permission to publish or manage opportunities.",
+      },
       { status: 403 }
     );
   }
 
   try {
     const body = await req.json();
+
     const {
       title,
       description,
@@ -80,27 +102,48 @@ export async function POST(req: NextRequest) {
       startDate,
       endDate,
       location,
-      status,
     } = body;
 
-    // Validation
-    if (!title || typeof title !== "string" || title.trim().length < 3) {
+    // -----------------------------
+    // VALIDATION
+    // -----------------------------
+
+    if (
+      !title ||
+      typeof title !== "string" ||
+      title.trim().length < 3
+    ) {
       return NextResponse.json(
-        { error: "Opportunity title must be at least 3 characters long." },
+        {
+          error:
+            "Opportunity title must be at least 3 characters long.",
+        },
         { status: 400 }
       );
     }
 
-    if (!description || typeof description !== "string" || description.trim().length < 10) {
+    if (
+      !description ||
+      typeof description !== "string" ||
+      description.trim().length < 10
+    ) {
       return NextResponse.json(
-        { error: "Opportunity description must be at least 10 characters long." },
+        {
+          error:
+            "Opportunity description must be at least 10 characters long.",
+        },
         { status: 400 }
       );
     }
 
-    if (!category || !VALID_CATEGORIES.has(category as Category)) {
+    if (
+      !category ||
+      !VALID_CATEGORIES.has(category as Category)
+    ) {
       return NextResponse.json(
-        { error: "Please select a valid opportunity category." },
+        {
+          error: "Please select a valid opportunity category.",
+        },
         { status: 400 }
       );
     }
@@ -108,20 +151,39 @@ export async function POST(req: NextRequest) {
     if (
       !officialUrl ||
       typeof officialUrl !== "string" ||
-      (!officialUrl.startsWith("http://") && !officialUrl.startsWith("https://"))
+      (!officialUrl.startsWith("http://") &&
+        !officialUrl.startsWith("https://"))
     ) {
       return NextResponse.json(
-        { error: "Official URL must start with http:// or https://" },
+        {
+          error:
+            "Official URL must start with http:// or https://",
+        },
         { status: 400 }
       );
     }
 
-    if (!deadline || isNaN(new Date(deadline).getTime())) {
+    if (
+      !deadline ||
+      isNaN(new Date(deadline).getTime())
+    ) {
       return NextResponse.json(
-        { error: "A valid registration deadline date is required." },
+        {
+          error:
+            "A valid registration deadline date is required.",
+        },
         { status: 400 }
       );
     }
+
+    // IMPORTANT:
+    // Never allow CLUB_OWNER to choose APPROVED from the request.
+    // Club owners submit opportunities for admin approval.
+    // Admin-created opportunities can be approved immediately.
+    const opportunityStatus =
+      user.role === "ADMIN"
+        ? "APPROVED"
+        : "SUBMITTED";
 
     const opportunity = await createClubOpportunity(
       {
@@ -132,8 +194,10 @@ export async function POST(req: NextRequest) {
         deadline,
         startDate: startDate || null,
         endDate: endDate || null,
-        location: location ? location.trim() : null,
-        status: (status as OpportunityStatus) || "APPROVED",
+        location: location
+          ? location.trim()
+          : null,
+        status: opportunityStatus,
       },
       user
     );
@@ -146,12 +210,28 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error: any) {
-    console.error("[API Club Opportunities] POST Error:", error);
-    if (error?.message?.includes("FORBIDDEN")) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
+    console.error(
+      "[API Club Opportunities] POST Error:",
+      error
+    );
+
+    if (
+      error?.message?.includes("FORBIDDEN")
+    ) {
+      return NextResponse.json(
+        {
+          error: error.message,
+        },
+        { status: 403 }
+      );
     }
+
     return NextResponse.json(
-      { error: error?.message || "Failed to create opportunity." },
+      {
+        error:
+          error?.message ||
+          "Failed to create opportunity.",
+      },
       { status: 500 }
     );
   }

@@ -63,25 +63,50 @@ function slugify(text: string): string {
 /**
  * Resolves the club slug / id from user's clubId or email
  */
-export function resolveUserClub(user: { clubId?: string | null; email?: string | null }): {
-  id: string;
-  name: string;
-  slug: string;
-} {
-  const identifier = user.clubId || "coding-club-rvce";
-  const found = SEED_CLUBS.find(
-    (c) => c.slug === identifier || c.name.toLowerCase() === identifier.toLowerCase()
-  );
+export async function resolveUserClub(
+  user: { 
+     role: string;
+    clubId?: string | null; 
+    email?: string | null 
+}
+) {
+  if (user.clubId) {
+    const clubById = await prisma.club.findUnique({
+      where: {
+        id: user.clubId,
+      },
+    });
 
-  if (found) {
-    return { id: found.slug, name: found.name, slug: found.slug };
+    if (clubById) {
+      return clubById;
+    }
+
+    const clubBySlug = await prisma.club.findUnique({
+      where: {
+        slug: user.clubId,
+      },
+    });
+
+    if (clubBySlug) {
+      return clubBySlug;
+    }
+  }
+  if (user.role === "CLUB_OWNER") {
+  throw new Error(
+    "CLUB_NOT_ASSIGNED: Club owner has no valid club assignment."
+  );
+}
+  const defaultClub = await prisma.club.findUnique({
+    where: {
+      slug: "coding-club-rvce",
+    },
+  });
+
+  if (!defaultClub) {
+    throw new Error("CLUB_NOT_FOUND: Assigned club does not exist.");
   }
 
-  return {
-    id: identifier,
-    name: "Coding Club RVCE",
-    slug: "coding-club-rvce",
-  };
+  return defaultClub;
 }
 
 /**
@@ -130,9 +155,10 @@ export async function getClubOpportunities(
 
     // Fallback to memory
     return filterMemoryOpportunities(clubIdentifier, userRole);
-  } catch {
-    return filterMemoryOpportunities(clubIdentifier, userRole);
-  }
+  } catch (error) {
+  console.error("[Club Portal] Failed to fetch opportunities:", error);
+  throw new Error("DATABASE_ERROR: Failed to fetch club opportunities.");
+}
 }
 
 function filterMemoryOpportunities(
@@ -161,7 +187,7 @@ export async function createClubOpportunity(
     throw new Error("FORBIDDEN: Only club owners and admins can create opportunities.");
   }
 
-  const club = resolveUserClub(user);
+  const club = await resolveUserClub(user);
   let baseSlug = slugify(input.title);
   if (!baseSlug) baseSlug = `opportunity-${Date.now()}`;
   const slug = `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
@@ -177,7 +203,10 @@ export async function createClubOpportunity(
     startDate: input.startDate ? new Date(input.startDate) : null,
     endDate: input.endDate ? new Date(input.endDate) : null,
     location: input.location?.trim() || "RVCE Campus",
-    status: input.status || "APPROVED",
+    status:
+      user.role === "ADMIN"
+        ? input.status || "APPROVED"
+        : "SUBMITTED",
     clubId: club.id,
     clubName: club.name,
     clubSlug: club.slug,
@@ -208,10 +237,9 @@ export async function createClubOpportunity(
       id: created.id,
       clubName: created.club?.name || club.name,
     };
-  } catch {
-    // Memory fallback
-    memoryClubOpportunities.unshift(newRecord);
-    return newRecord;
+  } catch (error) {
+  console.error("[Club Portal] Failed to create opportunity:", error);
+  throw new Error("DATABASE_ERROR: Failed to create opportunity.");
   }
 }
 
@@ -227,8 +255,7 @@ export async function updateClubOpportunity(
     throw new Error("FORBIDDEN: Only club owners and admins can edit opportunities.");
   }
 
-  const club = resolveUserClub(user);
-
+  const club = await resolveUserClub(user);
   // Check in database or memory
   let existingOpp: ClubOpportunityRecord | null = null;
   try {
@@ -289,7 +316,10 @@ export async function updateClubOpportunity(
     startDate: input.startDate !== undefined ? (input.startDate ? new Date(input.startDate) : null) : existingOpp.startDate,
     endDate: input.endDate !== undefined ? (input.endDate ? new Date(input.endDate) : null) : existingOpp.endDate,
     location: input.location !== undefined ? input.location : existingOpp.location,
-    status: input.status || existingOpp.status,
+    status:
+      user.role === "ADMIN"
+        ? input.status || existingOpp.status
+        : existingOpp.status,
   };
 
   try {
@@ -307,13 +337,11 @@ export async function updateClubOpportunity(
         status: updated.status,
       },
     });
-  } catch {
-    // Update memory
-    const idx = memoryClubOpportunities.findIndex((o) => o.id === id);
-    if (idx !== -1) {
-      memoryClubOpportunities[idx] = updated;
-    }
-  }
+  } catch (error) {
+     // Update memory
+  console.error("[Club Portal] Failed to update opportunity:", error);
+  throw new Error("DATABASE_ERROR: Failed to update opportunity.");
+  } 
 
   return updated;
 }
@@ -329,7 +357,7 @@ export async function deleteClubOpportunity(
     throw new Error("FORBIDDEN: Only club owners and admins can delete opportunities.");
   }
 
-  const club = resolveUserClub(user);
+  const club = await resolveUserClub(user);
 
   let existingOpp = memoryClubOpportunities.find((o) => o.id === id);
   try {
@@ -380,8 +408,9 @@ export async function deleteClubOpportunity(
     await prisma.opportunity.delete({
       where: { id },
     });
-  } catch {
-    memoryClubOpportunities = memoryClubOpportunities.filter((o) => o.id !== id);
+  } catch (error) {
+  console.error("[Club Portal] Failed to delete opportunity:", error);
+  throw new Error("DATABASE_ERROR: Failed to delete opportunity.");
   }
 
   return true;

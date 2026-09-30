@@ -3,33 +3,62 @@ import { getCurrentUser } from "@/lib/session";
 import { processUpcomingDeadlineReminders } from "@/lib/reminders";
 
 export async function POST(req: NextRequest) {
-  // Check authorization: either authenticated user, or CRON_SECRET header matching
   const authHeader = req.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
+
   const isCronAuthorized = Boolean(
     cronSecret && authHeader === `Bearer ${cronSecret}`
   );
 
   const currentUser = await getCurrentUser();
 
-  // If not a cron job and not an authenticated user, reject
-  if (!isCronAuthorized && !currentUser?.id) {
-    return NextResponse.json(
-      { error: "Unauthorized. Requires authenticated session or cron token." },
-      { status: 401 }
-    );
+  /*
+   * Production:
+   * Only the configured cron job may dispatch reminders.
+   *
+   * Development:
+   * An authenticated ADMIN can manually trigger the job for testing.
+   */
+  if (process.env.NODE_ENV === "production") {
+    if (!isCronAuthorized) {
+      return NextResponse.json(
+        { error: "Unauthorized. Reminder dispatch is cron-only in production." },
+        { status: 401 }
+      );
+    }
+  } else {
+    const isAdmin = currentUser?.role === "ADMIN";
+
+    if (!isCronAuthorized && !isAdmin) {
+      return NextResponse.json(
+        { error: "Unauthorized. Requires cron authorization or an admin session." },
+        { status: 401 }
+      );
+    }
   }
 
   try {
     let windowHours: number | undefined;
-    let targetEmail: string | undefined;
 
+    /*
+     * Only accept the reminder window.
+     * Do NOT accept targetEmail or targetUserId from the request.
+     *
+     * The production job must determine recipients from the database
+     * based on bookmarked opportunities.
+     */
     try {
       const body = await req.json();
-      if (typeof body.windowHours === "number") windowHours = body.windowHours;
-      if (typeof body.targetEmail === "string") targetEmail = body.targetEmail;
+
+      if (
+        typeof body.windowHours === "number" &&
+        Number.isFinite(body.windowHours) &&
+        body.windowHours > 0
+      ) {
+        windowHours = body.windowHours;
+      }
     } catch {
-      // Empty body is acceptable
+      // Empty request body is allowed.
     }
 
     const host = req.headers.get("host") || "localhost:3000";
@@ -39,8 +68,6 @@ export async function POST(req: NextRequest) {
     const summary = await processUpcomingDeadlineReminders({
       windowHours,
       baseUrl,
-      targetUserId: currentUser?.id,
-      targetUserEmail: targetEmail || currentUser?.email || undefined,
     });
 
     return NextResponse.json({
@@ -49,16 +76,27 @@ export async function POST(req: NextRequest) {
       summary,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message =
+      error instanceof Error ? error.message : String(error);
+
     console.error("[API Reminders Dispatch Error]:", message);
+
     return NextResponse.json(
-      { error: "Failed to dispatch deadline reminders", details: message },
+      {
+        error: "Failed to dispatch deadline reminders",
+        details:
+          process.env.NODE_ENV === "production"
+            ? undefined
+            : message,
+      },
       { status: 500 }
     );
   }
 }
 
-export async function GET(req: NextRequest) {
-  // Allow GET inspection for test / healthcheck
-  return POST(req);
+export async function GET() {
+  return NextResponse.json(
+    { error: "Method Not Allowed. Use POST." },
+    { status: 405 }
+  );
 }

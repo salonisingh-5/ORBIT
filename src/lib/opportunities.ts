@@ -196,11 +196,15 @@ export async function getOpportunities(params: OpportunityQuery = {}): Promise<O
       include: { club: true },
       orderBy: sortBy === "newest" ? { createdAt: "desc" } : { deadline: "asc" },
     });
-    if (rows && rows.length > 0) {
+    if (rows.length > 0 || process.env.NODE_ENV === "production") {
       return rows.map(toRecord);
     }
     return fromSeed(params);
-  } catch {
+  } catch (error) {
+    console.error("[Opportunities] Database query failed:", error);
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("DATABASE_ERROR: Failed to load opportunities.");
+    }
     return fromSeed(params);
   }
 }
