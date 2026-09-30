@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getOpportunities, type OpportunityRecord } from "@/lib/opportunities";
+import { getOpportunities } from "@/lib/opportunities";
 import { getUserBookmarkedIds } from "@/lib/bookmarks";
 import { formatDeadlineCountdown, formatEventDate, formatEventTime } from "@/lib/date-utils";
 import {
@@ -15,38 +15,26 @@ export interface ReminderJobResult {
   errors: string[];
 }
 
-// In-memory set tracking sent email keys for local development resilience
-// Key format: `${userId}:${opportunityId}`
-const memorySentEmails = new Set<string>();
-
 /**
- * Checks if a reminder email has already been dispatched for this user and opportunity.
+ * Checks if a reminder email has already been dispatched for this user and opportunity in PostgreSQL.
  */
 export async function hasEmailBeenSent(
   userId: string,
   opportunityId: string
 ): Promise<boolean> {
-  const key = `${userId}:${opportunityId}`;
+  const existing = await prisma.notification.findFirst({
+    where: {
+      userId,
+      opportunityId,
+      emailSent: true,
+    },
+  });
 
-  try {
-    const existing = await prisma.notification.findFirst({
-      where: {
-        userId,
-        opportunityId,
-        emailSent: true,
-      },
-    });
-    if (existing) return true;
-  } catch {
-    // Database fallback
-    if (memorySentEmails.has(key)) return true;
-  }
-
-  return memorySentEmails.has(key);
+  return Boolean(existing);
 }
 
 /**
- * Marks that an email was sent to avoid duplicate dispatches.
+ * Marks that an email was sent in PostgreSQL to prevent duplicate dispatches.
  */
 export async function markEmailAsSent(
   userId: string,
@@ -54,35 +42,27 @@ export async function markEmailAsSent(
   title: string,
   message: string
 ): Promise<void> {
-  const key = `${userId}:${opportunityId}`;
-  memorySentEmails.add(key);
+  const existing = await prisma.notification.findFirst({
+    where: { userId, opportunityId },
+  });
 
-  try {
-    // Upsert or create notification with emailSent: true
-    const existing = await prisma.notification.findFirst({
-      where: { userId, opportunityId },
+  if (existing) {
+    await prisma.notification.update({
+      where: { id: existing.id },
+      data: { emailSent: true, message, title },
     });
-
-    if (existing) {
-      await prisma.notification.update({
-        where: { id: existing.id },
-        data: { emailSent: true },
-      });
-    } else {
-      await prisma.notification.create({
-        data: {
-          userId,
-          opportunityId,
-          title,
-          message,
-          type: "DEADLINE_REMINDER",
-          read: false,
-          emailSent: true,
-        },
-      });
-    }
-  } catch (err) {
-    // In-memory fallback already recorded in memorySentEmails
+  } else {
+    await prisma.notification.create({
+      data: {
+        userId,
+        opportunityId,
+        title,
+        message,
+        type: "DEADLINE_REMINDER",
+        read: false,
+        emailSent: true,
+      },
+    });
   }
 }
 
@@ -93,7 +73,7 @@ export async function markEmailAsSent(
 export async function processUpcomingDeadlineReminders(options?: {
   windowHours?: number;
   baseUrl?: string;
-  targetUserId?: string; // Optional: run for specific user
+  targetUserId?: string;
   targetUserEmail?: string;
 }): Promise<ReminderJobResult> {
   const windowHours = options?.windowHours ?? 72;
@@ -113,7 +93,7 @@ export async function processUpcomingDeadlineReminders(options?: {
 
   result.processedOpportunities = approaching.length;
 
-  // Determine user list to inspect
+  // Determine user list from PostgreSQL
   let targetUsers: Array<{ id: string; email: string | null; name: string | null }> = [];
 
   if (options?.targetUserId && options?.targetUserEmail) {
@@ -125,21 +105,10 @@ export async function processUpcomingDeadlineReminders(options?: {
       },
     ];
   } else {
-    try {
-      const dbUsers = await prisma.user.findMany({
-        select: { id: true, email: true, name: true },
-      });
-      targetUsers = dbUsers;
-    } catch {
-      // In development fallback, if no DB users, use current target or mock RVCE student
-      if (options?.targetUserEmail) {
-        targetUsers = [{
-          id: options.targetUserId || "dev-student-1",
-          email: options.targetUserEmail,
-          name: "RVCE Student",
-        }];
-      }
-    }
+    const dbUsers = await prisma.user.findMany({
+      select: { id: true, email: true, name: true },
+    });
+    targetUsers = dbUsers;
   }
 
   for (const opp of approaching) {
@@ -153,12 +122,12 @@ export async function processUpcomingDeadlineReminders(options?: {
       const userBookmarks = await getUserBookmarkedIds(user.id);
       const isBookmarked = userBookmarks.includes(opp.id);
 
-      // In development/test mode or if explicitly targeted, allow dispatch
+      // In production, only send to users who bookmarked the event (unless explicitly targeted)
       if (!isBookmarked && !options?.targetUserId) {
         continue;
       }
 
-      // Check duplicate send protection
+      // Check duplicate send protection against PostgreSQL
       const alreadySent = await hasEmailBeenSent(user.id, opp.id);
       if (alreadySent) {
         result.remindersSkipped++;

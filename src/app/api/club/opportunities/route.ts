@@ -35,7 +35,7 @@ export async function GET() {
   }
 
   try {
-    const club = resolveUserClub(user);
+    const club = await resolveUserClub(user);
     const opportunities = await getClubOpportunities(club.id, user.role);
 
     return NextResponse.json({
@@ -43,8 +43,11 @@ export async function GET() {
       club,
       opportunities,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[API Club Opportunities] GET Error:", error);
+    if (error?.message?.includes("FORBIDDEN")) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
     return NextResponse.json(
       { error: "Failed to fetch club opportunities." },
       { status: 500 }

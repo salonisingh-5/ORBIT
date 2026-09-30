@@ -28,21 +28,31 @@ export default async function ClubDashboardPage() {
   }
 
   // User is CLUB_OWNER or ADMIN
-  const club = resolveUserClub(user);
-  const opportunities = await getClubOpportunities(club.id, user.role);
+  try {
+    const club = await resolveUserClub(user);
+    const opportunities = await getClubOpportunities(club.id, user.role);
 
-  return (
-    <div className="flex-1">
-      <ClubDashboardView
-        club={club}
-        initialOpportunities={opportunities}
-        user={{
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        }}
+    return (
+      <div className="flex-1">
+        <ClubDashboardView
+          club={club}
+          initialOpportunities={opportunities}
+          user={{
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+          }}
+        />
+      </div>
+    );
+  } catch (error: any) {
+    return (
+      <ClubAuthCta
+        reason="forbidden"
+        userEmail={user.email}
+        userRole={user.role}
       />
-    </div>
-  );
+    );
+  }
 }

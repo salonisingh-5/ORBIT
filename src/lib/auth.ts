@@ -47,16 +47,43 @@ export const authOptions: NextAuthOptions = {
           // Find or upsert user in database
           let dbUser = await prisma.user.findUnique({
             where: { email },
+            include: { club: true },
           });
 
           if (!dbUser) {
+            let assignedClubId: string | null = null;
+            if (role === Role.CLUB_OWNER) {
+              const prefix = email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "");
+              const matchingClub = await prisma.club.findFirst({
+                where: {
+                  OR: [
+                    { slug: { contains: prefix } },
+                    { name: { contains: prefix, mode: "insensitive" } },
+                  ],
+                },
+              });
+              const defaultClub = await prisma.club.findFirst({ orderBy: { createdAt: "asc" } });
+              assignedClubId = matchingClub ? matchingClub.id : defaultClub?.id || null;
+            }
+
             dbUser = await prisma.user.create({
               data: {
                 email,
                 name: email.split("@")[0].replace(".", " ").toUpperCase(),
                 role,
+                clubId: assignedClubId,
               },
+              include: { club: true },
             });
+          } else if (role === Role.CLUB_OWNER && !dbUser.clubId) {
+            const defaultClub = await prisma.club.findFirst({ orderBy: { createdAt: "asc" } });
+            if (defaultClub) {
+              dbUser = await prisma.user.update({
+                where: { id: dbUser.id },
+                data: { clubId: defaultClub.id },
+                include: { club: true },
+              });
+            }
           }
 
           return {

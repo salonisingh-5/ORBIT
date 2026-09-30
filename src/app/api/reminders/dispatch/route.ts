@@ -3,14 +3,21 @@ import { getCurrentUser } from "@/lib/session";
 import { processUpcomingDeadlineReminders } from "@/lib/reminders";
 
 export async function POST(req: NextRequest) {
-  // Check authorization: either authenticated user, or CRON_SECRET header matching
+  // Check authorization: either CRON_SECRET header matching or authenticated user session
   const authHeader = req.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
   const isCronAuthorized = Boolean(
     cronSecret && authHeader === `Bearer ${cronSecret}`
   );
 
-  const currentUser = await getCurrentUser();
+  let currentUser = null;
+  if (!isCronAuthorized) {
+    try {
+      currentUser = await getCurrentUser();
+    } catch {
+      currentUser = null;
+    }
+  }
 
   // If not a cron job and not an authenticated user, reject
   if (!isCronAuthorized && !currentUser?.id) {
@@ -59,6 +66,5 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  // Allow GET inspection for test / healthcheck
   return POST(req);
 }

@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { SEED_OPPORTUNITIES, SEED_CLUBS } from "@/lib/seed-data";
 import { Category, OpportunityStatus } from "@prisma/client";
 
 export interface ClubOpportunityInput {
@@ -32,25 +31,6 @@ export interface ClubOpportunityRecord {
   createdAt: Date;
 }
 
-// In-memory store for fallback offline dev
-let memoryClubOpportunities: ClubOpportunityRecord[] = SEED_OPPORTUNITIES.map((opp) => ({
-  id: opp.id,
-  title: opp.title,
-  slug: opp.slug,
-  description: opp.description,
-  category: opp.category as Category,
-  officialUrl: opp.officialUrl,
-  deadline: new Date(opp.deadline),
-  startDate: opp.startDate ? new Date(opp.startDate) : null,
-  endDate: opp.endDate ? new Date(opp.endDate) : null,
-  location: opp.location,
-  status: opp.status as OpportunityStatus,
-  clubId: opp.clubSlug,
-  clubName: opp.clubName,
-  clubSlug: opp.clubSlug,
-  createdAt: new Date(opp.createdAt),
-}));
-
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -61,27 +41,85 @@ function slugify(text: string): string {
 }
 
 /**
- * Resolves the club slug / id from user's clubId or email
+ * Resolves the authenticated user's club strictly from PostgreSQL.
  */
-export function resolveUserClub(user: { clubId?: string | null; email?: string | null }): {
+export async function resolveUserClub(user: {
+  id?: string;
+  role?: string;
+  clubId?: string | null;
+  email?: string | null;
+}): Promise<{
   id: string;
   name: string;
   slug: string;
-} {
-  const identifier = user.clubId || "coding-club-rvce";
-  const found = SEED_CLUBS.find(
-    (c) => c.slug === identifier || c.name.toLowerCase() === identifier.toLowerCase()
-  );
+}> {
+  // 1. If user ID is available, check direct user record with club relation
+  if (user.id) {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: { club: true },
+    });
 
-  if (found) {
-    return { id: found.slug, name: found.name, slug: found.slug };
+    if (dbUser?.club) {
+      return {
+        id: dbUser.club.id,
+        name: dbUser.club.name,
+        slug: dbUser.club.slug,
+      };
+    }
   }
 
-  return {
-    id: identifier,
-    name: "Coding Club RVCE",
-    slug: "coding-club-rvce",
-  };
+  // 2. If user has a clubId or slug in session
+  if (user.clubId) {
+    const club = await prisma.club.findFirst({
+      where: {
+        OR: [{ id: user.clubId }, { slug: user.clubId }],
+      },
+    });
+
+    if (club) {
+      return {
+        id: club.id,
+        name: club.name,
+        slug: club.slug,
+      };
+    }
+  }
+
+  // 3. If email is provided, check user record by email
+  if (user.email) {
+    const dbUser = await prisma.user.findUnique({
+      where: { email: user.email.toLowerCase() },
+      include: { club: true },
+    });
+
+    if (dbUser?.club) {
+      return {
+        id: dbUser.club.id,
+        name: dbUser.club.name,
+        slug: dbUser.club.slug,
+      };
+    }
+  }
+
+  // 4. Admin fallback to default first club
+  if (user.role === "ADMIN") {
+    const firstClub = await prisma.club.findFirst({
+      orderBy: { createdAt: "asc" },
+    });
+
+    if (firstClub) {
+      return {
+        id: firstClub.id,
+        name: firstClub.name,
+        slug: firstClub.slug,
+      };
+    }
+  }
+
+  throw new Error(
+    "FORBIDDEN: No campus club is currently affiliated with your account. Please contact an administrator to assign your club."
+  );
 }
 
 /**
@@ -91,67 +129,43 @@ export async function getClubOpportunities(
   clubIdentifier: string,
   userRole: string
 ): Promise<ClubOpportunityRecord[]> {
-  try {
-    const where =
-      userRole === "ADMIN" && !clubIdentifier
-        ? {}
-        : {
-            OR: [
-              { clubId: clubIdentifier },
-              { club: { slug: clubIdentifier } },
-            ],
-          };
+  const where =
+    userRole === "ADMIN" && !clubIdentifier
+      ? {}
+      : {
+          OR: [
+            { clubId: clubIdentifier },
+            { club: { slug: clubIdentifier } },
+          ],
+        };
 
-    const rows = await prisma.opportunity.findMany({
-      where,
-      include: { club: true },
-      orderBy: { deadline: "asc" },
-    });
+  const rows = await prisma.opportunity.findMany({
+    where,
+    include: { club: true },
+    orderBy: { deadline: "asc" },
+  });
 
-    if (rows.length > 0) {
-      return rows.map((r) => ({
-        id: r.id,
-        title: r.title,
-        slug: r.slug,
-        description: r.description,
-        category: r.category,
-        officialUrl: r.officialUrl,
-        deadline: r.deadline,
-        startDate: r.startDate,
-        endDate: r.endDate,
-        location: r.location,
-        status: r.status,
-        clubId: r.clubId,
-        clubName: r.club?.name || "RVCE Club",
-        clubSlug: r.club?.slug || clubIdentifier,
-        createdAt: r.createdAt,
-      }));
-    }
-
-    // Fallback to memory
-    return filterMemoryOpportunities(clubIdentifier, userRole);
-  } catch {
-    return filterMemoryOpportunities(clubIdentifier, userRole);
-  }
-}
-
-function filterMemoryOpportunities(
-  clubIdentifier: string,
-  userRole: string
-): ClubOpportunityRecord[] {
-  if (userRole === "ADMIN" && !clubIdentifier) {
-    return memoryClubOpportunities;
-  }
-  return memoryClubOpportunities.filter(
-    (opp) =>
-      opp.clubId === clubIdentifier ||
-      opp.clubSlug === clubIdentifier ||
-      opp.clubId?.includes(clubIdentifier)
-  );
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    slug: r.slug,
+    description: r.description,
+    category: r.category,
+    officialUrl: r.officialUrl,
+    deadline: r.deadline,
+    startDate: r.startDate,
+    endDate: r.endDate,
+    location: r.location,
+    status: r.status,
+    clubId: r.clubId,
+    clubName: r.club?.name || "RVCE Club",
+    clubSlug: r.club?.slug || "",
+    createdAt: r.createdAt,
+  }));
 }
 
 /**
- * Creates a new opportunity strictly scoped to the user's club.
+ * Creates a new opportunity strictly scoped to the user's club in PostgreSQL.
  */
 export async function createClubOpportunity(
   input: ClubOpportunityInput,
@@ -161,62 +175,50 @@ export async function createClubOpportunity(
     throw new Error("FORBIDDEN: Only club owners and admins can create opportunities.");
   }
 
-  const club = resolveUserClub(user);
+  const club = await resolveUserClub(user);
   let baseSlug = slugify(input.title);
   if (!baseSlug) baseSlug = `opportunity-${Date.now()}`;
   const slug = `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
 
-  const newRecord: ClubOpportunityRecord = {
-    id: `opp-${Date.now()}`,
-    title: input.title.trim(),
-    slug,
-    description: input.description.trim(),
-    category: input.category,
-    officialUrl: input.officialUrl.trim(),
-    deadline: new Date(input.deadline),
-    startDate: input.startDate ? new Date(input.startDate) : null,
-    endDate: input.endDate ? new Date(input.endDate) : null,
-    location: input.location?.trim() || "RVCE Campus",
-    status: input.status || "APPROVED",
-    clubId: club.id,
-    clubName: club.name,
-    clubSlug: club.slug,
-    createdAt: new Date(),
+  const created = await prisma.opportunity.create({
+    data: {
+      title: input.title.trim(),
+      slug,
+      description: input.description.trim(),
+      category: input.category,
+      officialUrl: input.officialUrl.trim(),
+      deadline: new Date(input.deadline),
+      startDate: input.startDate ? new Date(input.startDate) : null,
+      endDate: input.endDate ? new Date(input.endDate) : null,
+      location: input.location?.trim() || "RVCE Campus",
+      status: input.status || "APPROVED",
+      clubId: club.id,
+      createdById: user.id,
+    },
+    include: { club: true },
+  });
+
+  return {
+    id: created.id,
+    title: created.title,
+    slug: created.slug,
+    description: created.description,
+    category: created.category,
+    officialUrl: created.officialUrl,
+    deadline: created.deadline,
+    startDate: created.startDate,
+    endDate: created.endDate,
+    location: created.location,
+    status: created.status,
+    clubId: created.clubId,
+    clubName: created.club?.name || club.name,
+    clubSlug: created.club?.slug || club.slug,
+    createdAt: created.createdAt,
   };
-
-  try {
-    const created = await prisma.opportunity.create({
-      data: {
-        title: newRecord.title,
-        slug: newRecord.slug,
-        description: newRecord.description,
-        category: newRecord.category,
-        officialUrl: newRecord.officialUrl,
-        deadline: newRecord.deadline,
-        startDate: newRecord.startDate,
-        endDate: newRecord.endDate,
-        location: newRecord.location,
-        status: newRecord.status,
-        clubId: club.id,
-        createdById: user.id,
-      },
-      include: { club: true },
-    });
-
-    return {
-      ...newRecord,
-      id: created.id,
-      clubName: created.club?.name || club.name,
-    };
-  } catch {
-    // Memory fallback
-    memoryClubOpportunities.unshift(newRecord);
-    return newRecord;
-  }
 }
 
 /**
- * Updates an opportunity with strict ownership verification.
+ * Updates an opportunity with strict ownership verification against PostgreSQL.
  */
 export async function updateClubOpportunity(
   id: string,
@@ -227,51 +229,22 @@ export async function updateClubOpportunity(
     throw new Error("FORBIDDEN: Only club owners and admins can edit opportunities.");
   }
 
-  const club = resolveUserClub(user);
-
-  // Check in database or memory
-  let existingOpp: ClubOpportunityRecord | null = null;
-  try {
-    const row = await prisma.opportunity.findUnique({
-      where: { id },
-      include: { club: true },
-    });
-    if (row) {
-      existingOpp = {
-        id: row.id,
-        title: row.title,
-        slug: row.slug,
-        description: row.description,
-        category: row.category,
-        officialUrl: row.officialUrl,
-        deadline: row.deadline,
-        startDate: row.startDate,
-        endDate: row.endDate,
-        location: row.location,
-        status: row.status,
-        clubId: row.clubId,
-        clubName: row.club?.name || "",
-        clubSlug: row.club?.slug || "",
-        createdAt: row.createdAt,
-      };
-    }
-  } catch {
-    existingOpp = memoryClubOpportunities.find((o) => o.id === id) || null;
-  }
-
-  if (!existingOpp) {
-    existingOpp = memoryClubOpportunities.find((o) => o.id === id) || null;
-  }
+  const existingOpp = await prisma.opportunity.findUnique({
+    where: { id },
+    include: { club: true },
+  });
 
   if (!existingOpp) {
     throw new Error("NOT_FOUND: Opportunity not found.");
   }
 
+  const club = await resolveUserClub(user);
+
   // Strict ownership check: Must be ADMIN or match clubId
   const isOwner =
     user.role === "ADMIN" ||
     existingOpp.clubId === club.id ||
-    existingOpp.clubSlug === club.slug;
+    (existingOpp.club && existingOpp.club.slug === club.slug);
 
   if (!isOwner) {
     throw new Error(
@@ -279,47 +252,49 @@ export async function updateClubOpportunity(
     );
   }
 
-  const updated: ClubOpportunityRecord = {
-    ...existingOpp,
-    title: input.title !== undefined ? input.title.trim() : existingOpp.title,
-    description: input.description !== undefined ? input.description.trim() : existingOpp.description,
-    category: input.category || existingOpp.category,
-    officialUrl: input.officialUrl !== undefined ? input.officialUrl.trim() : existingOpp.officialUrl,
-    deadline: input.deadline ? new Date(input.deadline) : existingOpp.deadline,
-    startDate: input.startDate !== undefined ? (input.startDate ? new Date(input.startDate) : null) : existingOpp.startDate,
-    endDate: input.endDate !== undefined ? (input.endDate ? new Date(input.endDate) : null) : existingOpp.endDate,
-    location: input.location !== undefined ? input.location : existingOpp.location,
-    status: input.status || existingOpp.status,
+  const updated = await prisma.opportunity.update({
+    where: { id },
+    data: {
+      ...(input.title !== undefined && { title: input.title.trim() }),
+      ...(input.description !== undefined && { description: input.description.trim() }),
+      ...(input.category && { category: input.category }),
+      ...(input.officialUrl !== undefined && { officialUrl: input.officialUrl.trim() }),
+      ...(input.deadline && { deadline: new Date(input.deadline) }),
+      ...(input.startDate !== undefined && {
+        startDate: input.startDate ? new Date(input.startDate) : null,
+      }),
+      ...(input.endDate !== undefined && {
+        endDate: input.endDate ? new Date(input.endDate) : null,
+      }),
+      ...(input.location !== undefined && {
+        location: input.location ? input.location.trim() : null,
+      }),
+      ...(input.status && { status: input.status }),
+    },
+    include: { club: true },
+  });
+
+  return {
+    id: updated.id,
+    title: updated.title,
+    slug: updated.slug,
+    description: updated.description,
+    category: updated.category,
+    officialUrl: updated.officialUrl,
+    deadline: updated.deadline,
+    startDate: updated.startDate,
+    endDate: updated.endDate,
+    location: updated.location,
+    status: updated.status,
+    clubId: updated.clubId,
+    clubName: updated.club?.name || "",
+    clubSlug: updated.club?.slug || "",
+    createdAt: updated.createdAt,
   };
-
-  try {
-    await prisma.opportunity.update({
-      where: { id },
-      data: {
-        title: updated.title,
-        description: updated.description,
-        category: updated.category,
-        officialUrl: updated.officialUrl,
-        deadline: updated.deadline,
-        startDate: updated.startDate,
-        endDate: updated.endDate,
-        location: updated.location,
-        status: updated.status,
-      },
-    });
-  } catch {
-    // Update memory
-    const idx = memoryClubOpportunities.findIndex((o) => o.id === id);
-    if (idx !== -1) {
-      memoryClubOpportunities[idx] = updated;
-    }
-  }
-
-  return updated;
 }
 
 /**
- * Deletes an opportunity with strict ownership verification.
+ * Deletes an opportunity with strict ownership verification against PostgreSQL.
  */
 export async function deleteClubOpportunity(
   id: string,
@@ -329,46 +304,22 @@ export async function deleteClubOpportunity(
     throw new Error("FORBIDDEN: Only club owners and admins can delete opportunities.");
   }
 
-  const club = resolveUserClub(user);
-
-  let existingOpp = memoryClubOpportunities.find((o) => o.id === id);
-  try {
-    const row = await prisma.opportunity.findUnique({
-      where: { id },
-      include: { club: true },
-    });
-    if (row) {
-      existingOpp = {
-        id: row.id,
-        title: row.title,
-        slug: row.slug,
-        description: row.description,
-        category: row.category,
-        officialUrl: row.officialUrl,
-        deadline: row.deadline,
-        startDate: row.startDate,
-        endDate: row.endDate,
-        location: row.location,
-        status: row.status,
-        clubId: row.clubId,
-        clubName: row.club?.name || "",
-        clubSlug: row.club?.slug || "",
-        createdAt: row.createdAt,
-      };
-    }
-  } catch {
-    // Rely on memory
-  }
+  const existingOpp = await prisma.opportunity.findUnique({
+    where: { id },
+    include: { club: true },
+  });
 
   if (!existingOpp) {
     throw new Error("NOT_FOUND: Opportunity not found.");
   }
 
+  const club = await resolveUserClub(user);
+
   // Strict ownership check
   const isOwner =
     user.role === "ADMIN" ||
     existingOpp.clubId === club.id ||
-    existingOpp.clubSlug === club.slug;
+    (existingOpp.club && existingOpp.club.slug === club.slug);
 
   if (!isOwner) {
     throw new Error(
@@ -376,13 +327,9 @@ export async function deleteClubOpportunity(
     );
   }
 
-  try {
-    await prisma.opportunity.delete({
-      where: { id },
-    });
-  } catch {
-    memoryClubOpportunities = memoryClubOpportunities.filter((o) => o.id !== id);
-  }
+  await prisma.opportunity.delete({
+    where: { id },
+  });
 
   return true;
 }

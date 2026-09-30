@@ -208,7 +208,7 @@ export function AdminDashboardView({
       [userId]: {
         ...existing,
         role: newRole,
-        clubId: newRole === "CLUB_OWNER" ? existing.clubId || clubs[0]?.slug || null : null,
+        clubId: newRole === "CLUB_OWNER" ? existing.clubId || clubs[0]?.id || null : null,
       },
     }));
   }
@@ -759,7 +759,7 @@ export function AdminDashboardView({
                           >
                             <option value="">Select Club...</option>
                             {clubs.map((c) => (
-                              <option key={c.id} value={c.slug}>
+                              <option key={c.id} value={c.id}>
                                 {c.name}
                               </option>
                             ))}
