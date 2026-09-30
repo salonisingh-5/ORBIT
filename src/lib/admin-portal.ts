@@ -1,6 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { SEED_CLUBS, SEED_OPPORTUNITIES } from "@/lib/seed-data";
 import { Role, Category, OpportunityStatus } from "@prisma/client";
+import {
+  getMemoryOpportunities,
+  addMemoryOpportunity,
+  updateMemoryOpportunity,
+  deleteMemoryOpportunity,
+  slugify,
+} from "@/lib/db-store";
 
 export interface AdminClubRecord {
   id: string;
@@ -421,6 +428,113 @@ export async function getAdminOpportunities(
   return memoryOpportunities;
 }
 
+export async function createOpportunityAsAdmin(
+  data: {
+    title: string;
+    description: string;
+    category: Category;
+    officialUrl: string;
+    deadline: string | Date;
+    startDate?: string | Date | null;
+    endDate?: string | Date | null;
+    location?: string | null;
+    clubId?: string | null;
+    status?: OpportunityStatus;
+  },
+  adminUser: { id: string; email?: string | null }
+): Promise<AdminOpportunityRecord> {
+  const title = data.title.trim();
+  const description = data.description.trim();
+  const officialUrl = data.officialUrl.trim();
+  const deadline = new Date(data.deadline);
+
+  if (title.length < 3) {
+    throw new Error("VALIDATION: Title must be at least 3 characters.");
+  }
+  if (description.length < 10) {
+    throw new Error("VALIDATION: Description must be at least 10 characters.");
+  }
+  if (!officialUrl.startsWith("http://") && !officialUrl.startsWith("https://")) {
+    throw new Error("VALIDATION: Official URL must start with http:// or https://");
+  }
+  if (isNaN(deadline.getTime())) {
+    throw new Error("VALIDATION: Invalid deadline date.");
+  }
+
+  // Resolve club
+  let clubName = "RVCE Campus Club";
+  let clubSlug = "coding-club-rvce";
+  const clubIdentifier = data.clubId || "coding-club-rvce";
+  const foundClub = memoryClubs.find((c) => c.id === clubIdentifier || c.slug === clubIdentifier);
+  if (foundClub) {
+    clubName = foundClub.name;
+    clubSlug = foundClub.slug;
+  }
+
+  let baseSlug = slugify(title);
+  if (!baseSlug) baseSlug = `opportunity-${Date.now()}`;
+  const slug = `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
+
+  const newRecord: AdminOpportunityRecord = {
+    id: `opp-${Date.now()}`,
+    title,
+    slug,
+    description,
+    category: data.category,
+    officialUrl,
+    deadline,
+    startDate: data.startDate ? new Date(data.startDate) : null,
+    endDate: data.endDate ? new Date(data.endDate) : null,
+    location: data.location?.trim() || "RVCE Campus",
+    status: data.status || "APPROVED",
+    clubId: foundClub?.id || clubSlug,
+    clubName,
+    clubSlug,
+    createdAt: new Date(),
+  };
+
+  try {
+    const created = await prisma.opportunity.create({
+      data: {
+        title: newRecord.title,
+        slug: newRecord.slug,
+        description: newRecord.description,
+        category: newRecord.category,
+        officialUrl: newRecord.officialUrl,
+        deadline: newRecord.deadline,
+        startDate: newRecord.startDate,
+        endDate: newRecord.endDate,
+        location: newRecord.location,
+        status: newRecord.status,
+        clubId: newRecord.clubId,
+        createdById: adminUser.id,
+      },
+      include: { club: true },
+    });
+
+    const res: AdminOpportunityRecord = {
+      ...newRecord,
+      id: created.id,
+      clubName: created.club?.name || clubName,
+    };
+    addMemoryOpportunity({
+      ...res,
+      createdById: adminUser.id,
+      updatedAt: new Date(),
+    });
+    memoryOpportunities.unshift(res);
+    return res;
+  } catch {
+    addMemoryOpportunity({
+      ...newRecord,
+      createdById: adminUser.id,
+      updatedAt: new Date(),
+    });
+    memoryOpportunities.unshift(newRecord);
+    return newRecord;
+  }
+}
+
 export async function moderateOpportunity(
   id: string,
   newStatus: OpportunityStatus
@@ -431,6 +545,8 @@ export async function moderateOpportunity(
       data: { status: newStatus },
       include: { club: true },
     });
+
+    updateMemoryOpportunity(id, { status: newStatus });
 
     return {
       id: updated.id,
@@ -458,6 +574,7 @@ export async function moderateOpportunity(
       ...memoryOpportunities[idx],
       status: newStatus,
     };
+    updateMemoryOpportunity(id, { status: newStatus });
     return memoryOpportunities[idx];
   }
 }
@@ -497,6 +614,18 @@ export async function updateOpportunityAsAdmin(
       include: { club: true },
     });
 
+    updateMemoryOpportunity(id, {
+      title: updated.title,
+      description: updated.description,
+      category: updated.category,
+      officialUrl: updated.officialUrl,
+      deadline: updated.deadline,
+      startDate: updated.startDate,
+      endDate: updated.endDate,
+      location: updated.location,
+      status: updated.status,
+    });
+
     return {
       id: updated.id,
       title: updated.title,
@@ -533,6 +662,17 @@ export async function updateOpportunityAsAdmin(
       status: data.status || current.status,
     };
     memoryOpportunities[idx] = modified;
+    updateMemoryOpportunity(id, {
+      title: modified.title,
+      description: modified.description,
+      category: modified.category,
+      officialUrl: modified.officialUrl,
+      deadline: modified.deadline,
+      startDate: modified.startDate,
+      endDate: modified.endDate,
+      location: modified.location,
+      status: modified.status,
+    });
     return modified;
   }
 }
@@ -540,6 +680,7 @@ export async function updateOpportunityAsAdmin(
 export async function deleteOpportunityAsAdmin(id: string): Promise<boolean> {
   try {
     await prisma.opportunity.delete({ where: { id } });
+    deleteMemoryOpportunity(id);
     return true;
   } catch {
     const idx = memoryOpportunities.findIndex((o) => o.id === id);
@@ -547,6 +688,7 @@ export async function deleteOpportunityAsAdmin(id: string): Promise<boolean> {
       throw new Error("NOT_FOUND: Opportunity not found.");
     }
     memoryOpportunities.splice(idx, 1);
+    deleteMemoryOpportunity(id);
     return true;
   }
 }

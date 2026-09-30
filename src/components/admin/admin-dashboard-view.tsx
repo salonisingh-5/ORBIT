@@ -28,6 +28,7 @@ import {
   AdminMetrics,
 } from "@/lib/admin-portal";
 import { ClubModal } from "@/components/admin/club-modal";
+import { OpportunityAdminModal } from "@/components/admin/opportunity-admin-modal";
 import { formatDeadlineCountdown } from "@/lib/date-utils";
 import { Role, OpportunityStatus } from "@prisma/client";
 
@@ -64,6 +65,10 @@ export function AdminDashboardView({
   const [oppFilter, setOppFilter] = useState<string>("ALL");
   const [oppSearch, setOppSearch] = useState("");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  // Opportunity modal state
+  const [isOppModalOpen, setIsOppModalOpen] = useState(false);
+  const [editingOpp, setEditingOpp] = useState<AdminOpportunityRecord | null>(null);
 
   // Club modal state
   const [isClubModalOpen, setIsClubModalOpen] = useState(false);
@@ -169,6 +174,32 @@ export function AdminDashboardView({
       showFeedback("error", err.message || "Failed to delete opportunity.");
     } finally {
       setActionLoadingId(null);
+    }
+  }
+
+  function handleOpenCreateOpp() {
+    setEditingOpp(null);
+    setIsOppModalOpen(true);
+  }
+
+  function handleOpenEditOpp(opp: AdminOpportunityRecord) {
+    setEditingOpp(opp);
+    setIsOppModalOpen(true);
+  }
+
+  function handleOppSaved(savedOpp: AdminOpportunityRecord) {
+    if (editingOpp) {
+      setOpportunities((prev) => prev.map((o) => (o.id === savedOpp.id ? savedOpp : o)));
+      showFeedback("success", `Updated opportunity "${savedOpp.title}".`);
+    } else {
+      setOpportunities((prev) => [savedOpp, ...prev]);
+      setMetrics((m) => ({
+        ...m,
+        totalOpportunities: m.totalOpportunities + 1,
+        approvedCount: savedOpp.status === "APPROVED" ? m.approvedCount + 1 : m.approvedCount,
+        pendingCount: savedOpp.status === "SUBMITTED" ? m.pendingCount + 1 : m.pendingCount,
+      }));
+      showFeedback("success", `Successfully created "${savedOpp.title}".`);
     }
   }
 
@@ -317,6 +348,16 @@ export function AdminDashboardView({
             Moderation queues, official club directories, and role provisioning across RVCE.
           </p>
         </div>
+
+        {activeTab === "MODERATION" && (
+          <button
+            onClick={handleOpenCreateOpp}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-orbit-brown px-5 py-2.5 text-sm font-medium text-orbit-ivory shadow-sm hover:bg-orbit-brown/90 transition-all hover:shadow"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Create Opportunity</span>
+          </button>
+        )}
 
         {activeTab === "CLUBS" && (
           <button
@@ -567,6 +608,15 @@ export function AdminDashboardView({
                             <span>Preview</span>
                           </Link>
 
+                          <button
+                            onClick={() => handleOpenEditOpp(opp)}
+                            className="rounded-lg border border-orbit-border bg-orbit-card px-3 py-1.5 text-xs font-medium text-orbit-brown hover:bg-orbit-paper transition-colors inline-flex items-center gap-1"
+                            title="Edit Opportunity Details"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                            <span>Edit</span>
+                          </button>
+
                           {opp.status !== "APPROVED" && (
                             <button
                               onClick={() => handleModerateStatus(opp.id, "APPROVED")}
@@ -796,6 +846,18 @@ export function AdminDashboardView({
         onClose={() => setIsClubModalOpen(false)}
         onSuccess={handleClubSaved}
         initialData={editingClub}
+      />
+
+      {/* Opportunity Admin Modal */}
+      <OpportunityAdminModal
+        isOpen={isOppModalOpen}
+        onClose={() => {
+          setIsOppModalOpen(false);
+          setEditingOpp(null);
+        }}
+        onSuccess={handleOppSaved}
+        initialData={editingOpp}
+        clubs={clubs}
       />
     </div>
   );
