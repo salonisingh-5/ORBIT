@@ -9,6 +9,7 @@ export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   pages: {
     signIn: "/",
@@ -90,6 +91,21 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
+  events: {
+    async signIn({ user }) {
+      if (user?.email && process.env.ADMIN_EMAILS) {
+        const adminEmails = process.env.ADMIN_EMAILS.split(",")
+          .map((e) => e.trim().toLowerCase())
+          .filter(Boolean);
+        if (adminEmails.includes(user.email.toLowerCase())) {
+          await prisma.user.updateMany({
+            where: { email: user.email.toLowerCase() },
+            data: { role: Role.ADMIN },
+          });
+        }
+      }
+    },
+  },
   callbacks: {
     async signIn({ user, account, profile }) {
       if (!user.email) return false;
@@ -99,6 +115,14 @@ export const authOptions: NextAuthOptions = {
       if (!email.endsWith("@rvce.edu.in")) {
         console.warn(`[Auth] Rejected login attempt with non-RVCE email: ${email}`);
         return false;
+      }
+
+      if (account?.provider === "google") {
+        const googleProfile = profile as { email_verified?: boolean } | undefined;
+        if (googleProfile?.email_verified !== true) {
+          console.warn(`[Auth] Rejected unverified Google email: ${email}`);
+          return false;
+        }
       }
 
       return true;
@@ -134,5 +158,5 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET || "orbit_rvce_secure_secret_fallback_key",
+  secret: process.env.NEXTAUTH_SECRET,
 };
