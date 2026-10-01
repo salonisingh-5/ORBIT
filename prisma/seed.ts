@@ -3,7 +3,7 @@ import { SEED_CLUBS, SEED_OPPORTUNITIES } from "../src/lib/seed-data";
 
 const prisma = new PrismaClient();
 
-const SEED_USER_EMAIL = "orbit-seed@rvce.edu.in";
+const SEED_USER_EMAIL = "orbit-seed@seed.invalid";
 
 async function main() {
   const seedUser = await prisma.user.upsert({
