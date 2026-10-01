@@ -3,9 +3,6 @@ import { SEED_CLUBS, SEED_OPPORTUNITIES } from "@/lib/seed-data";
 import { Role, Category, OpportunityStatus } from "@prisma/client";
 import {
   getMemoryOpportunities,
-  addMemoryOpportunity,
-  updateMemoryOpportunity,
-  deleteMemoryOpportunity,
   slugify,
 } from "@/lib/db-store";
 
@@ -523,21 +520,10 @@ export async function createOpportunityAsAdmin(
       id: created.id,
       clubName: created.club?.name || clubName,
     };
-    addMemoryOpportunity({
-      ...res,
-      createdById: adminUser.id,
-      updatedAt: new Date(),
-    });
-    memoryOpportunities.unshift(res);
     return res;
-  } catch {
-    addMemoryOpportunity({
-      ...newRecord,
-      createdById: adminUser.id,
-      updatedAt: new Date(),
-    });
-    memoryOpportunities.unshift(newRecord);
-    return newRecord;
+  } catch (error) {
+    console.error("[Admin] Database write failed:", error);
+    throw new Error("DATABASE_ERROR: Could not save to the database.");
   }
 }
 
@@ -552,7 +538,6 @@ export async function moderateOpportunity(
       include: { club: true },
     });
 
-    updateMemoryOpportunity(id, { status: newStatus });
 
     return {
       id: updated.id,
@@ -571,17 +556,9 @@ export async function moderateOpportunity(
       clubSlug: updated.club?.slug || "",
       createdAt: updated.createdAt,
     };
-  } catch {
-    const idx = memoryOpportunities.findIndex((o) => o.id === id);
-    if (idx === -1) {
-      throw new Error("NOT_FOUND: Opportunity not found.");
-    }
-    memoryOpportunities[idx] = {
-      ...memoryOpportunities[idx],
-      status: newStatus,
-    };
-    updateMemoryOpportunity(id, { status: newStatus });
-    return memoryOpportunities[idx];
+  } catch (error) {
+    console.error("[Admin] Database write failed:", error);
+    throw new Error("DATABASE_ERROR: Could not save to the database.");
   }
 }
 
@@ -620,17 +597,6 @@ export async function updateOpportunityAsAdmin(
       include: { club: true },
     });
 
-    updateMemoryOpportunity(id, {
-      title: updated.title,
-      description: updated.description,
-      category: updated.category,
-      officialUrl: updated.officialUrl,
-      deadline: updated.deadline,
-      startDate: updated.startDate,
-      endDate: updated.endDate,
-      location: updated.location,
-      status: updated.status,
-    });
 
     return {
       id: updated.id,
@@ -649,52 +615,19 @@ export async function updateOpportunityAsAdmin(
       clubSlug: updated.club?.slug || "",
       createdAt: updated.createdAt,
     };
-  } catch {
-    const idx = memoryOpportunities.findIndex((o) => o.id === id);
-    if (idx === -1) {
-      throw new Error("NOT_FOUND: Opportunity not found.");
-    }
-    const current = memoryOpportunities[idx];
-    const modified: AdminOpportunityRecord = {
-      ...current,
-      title: data.title?.trim() || current.title,
-      description: data.description?.trim() || current.description,
-      category: data.category || current.category,
-      officialUrl: data.officialUrl?.trim() || current.officialUrl,
-      deadline: data.deadline ? new Date(data.deadline) : current.deadline,
-      startDate: data.startDate !== undefined ? (data.startDate ? new Date(data.startDate) : null) : current.startDate,
-      endDate: data.endDate !== undefined ? (data.endDate ? new Date(data.endDate) : null) : current.endDate,
-      location: data.location !== undefined ? data.location : current.location,
-      status: data.status || current.status,
-    };
-    memoryOpportunities[idx] = modified;
-    updateMemoryOpportunity(id, {
-      title: modified.title,
-      description: modified.description,
-      category: modified.category,
-      officialUrl: modified.officialUrl,
-      deadline: modified.deadline,
-      startDate: modified.startDate,
-      endDate: modified.endDate,
-      location: modified.location,
-      status: modified.status,
-    });
-    return modified;
+  } catch (error) {
+    console.error("[Admin] Database write failed:", error);
+    throw new Error("DATABASE_ERROR: Could not save to the database.");
   }
 }
 
 export async function deleteOpportunityAsAdmin(id: string): Promise<boolean> {
   try {
     await prisma.opportunity.delete({ where: { id } });
-    deleteMemoryOpportunity(id);
     return true;
-  } catch {
-    const idx = memoryOpportunities.findIndex((o) => o.id === id);
-    if (idx === -1) {
-      throw new Error("NOT_FOUND: Opportunity not found.");
-    }
-    memoryOpportunities.splice(idx, 1);
-    deleteMemoryOpportunity(id);
-    return true;
+  } catch (error) {
+    console.error("[Admin] Database write failed:", error);
+    throw new Error("DATABASE_ERROR: Could not save to the database.");
   }
 }
+
