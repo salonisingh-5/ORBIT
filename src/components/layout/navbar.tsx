@@ -1,57 +1,72 @@
+"use client";
+
 import Link from "next/link";
-import { Sparkles, Calendar, Bookmark, Compass } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { UserMenu } from "@/components/auth/user-menu";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 
 export function Navbar() {
+  const pathname = usePathname();
+
+  const navLinks = [
+    { label: "Feed", href: "/" },
+    { label: "Calendar", href: "/calendar" },
+    { label: "Saved", href: "/saved" },
+    { label: "Clubs", href: "/#clubs" },
+    { label: "About", href: "/#about" },
+  ];
+
   return (
     <header className="sticky top-0 z-40 w-full border-b border-orbit-border bg-orbit-ivory/95 backdrop-blur-md transition-all">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Brand */}
-        <div className="flex items-center gap-8">
+        <div className="flex items-center">
           <Link href="/" className="group flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-orbit-border bg-orbit-paper text-orbit-gold shadow-sm transition-transform duration-300 group-hover:scale-105">
-              <Sparkles className="h-5 w-5 text-orbit-gold" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-serif text-xl font-bold tracking-tight text-orbit-brown">
-                ORBIT
-              </span>
-              <span className="text-[10px] font-medium uppercase tracking-widest text-orbit-muted">
-                RVCE Campus Hub
-              </span>
-            </div>
+            <svg
+              className="h-6 w-6 text-orbit-gold transition-transform duration-300 group-hover:rotate-12"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path d="M12 2L13.8 8.2L20 10L13.8 11.8L12 18L10.2 11.8L4 10L10.2 8.2L12 2Z" />
+            </svg>
+            <span className="font-serif text-2xl font-bold tracking-tight text-orbit-navy">
+              ORBIT
+            </span>
           </Link>
-
-          {/* Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1 text-sm font-medium">
-            <Link
-              href="/"
-              className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-orbit-subtle transition-colors hover:bg-orbit-paper hover:text-orbit-brown"
-            >
-              <Compass className="h-4 w-4 text-orbit-muted" />
-              Opportunities
-            </Link>
-            <Link
-              href="/calendar"
-              className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-orbit-subtle transition-colors hover:bg-orbit-paper hover:text-orbit-brown"
-            >
-              <Calendar className="h-4 w-4 text-orbit-muted" />
-              Calendar
-            </Link>
-            <Link
-              href="/saved"
-              className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-orbit-subtle transition-colors hover:bg-orbit-paper hover:text-orbit-brown"
-            >
-              <Bookmark className="h-4 w-4 text-orbit-muted" />
-              Saved
-            </Link>
-          </nav>
         </div>
+
+        {/* Centered Navigation Links */}
+        <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
+          {navLinks.map((link) => {
+            const isActive =
+              link.href === "/"
+                ? pathname === "/"
+                : link.href.startsWith("/#")
+                ? false
+                : pathname?.startsWith(link.href);
+
+            return (
+              <Link
+                key={link.label}
+                href={link.href}
+                className={`relative py-1 text-xs sm:text-sm font-medium transition-colors ${
+                  isActive
+                    ? "text-orbit-navy font-semibold"
+                    : "text-orbit-subtle hover:text-orbit-navy"
+                }`}
+              >
+                <span>{link.label}</span>
+                {isActive && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orbit-navy rounded-full" />
+                )}
+              </Link>
+            );
+          })}
+        </nav>
 
         {/* Right CTA / Auth Slot */}
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center rounded-full border border-orbit-border bg-orbit-paper/60 px-3 py-1 text-xs text-orbit-muted">
+          <div className="hidden sm:flex items-center rounded-full border border-orbit-border bg-orbit-card px-3 py-1 text-xs text-orbit-muted">
             <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-emerald-600"></span>
             @rvce.edu.in
           </div>

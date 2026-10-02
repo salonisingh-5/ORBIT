@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { SEED_OPPORTUNITIES, SEED_CLUBS } from "@/lib/seed-data";
 import { Category, OpportunityStatus } from "@prisma/client";
 
 export interface ClubOpportunityInput {
@@ -32,25 +31,6 @@ export interface ClubOpportunityRecord {
   createdAt: Date;
 }
 
-// In-memory store for fallback offline dev
-let memoryClubOpportunities: ClubOpportunityRecord[] = SEED_OPPORTUNITIES.map((opp) => ({
-  id: opp.id,
-  title: opp.title,
-  slug: opp.slug,
-  description: opp.description,
-  category: opp.category as Category,
-  officialUrl: opp.officialUrl,
-  deadline: new Date(opp.deadline),
-  startDate: opp.startDate ? new Date(opp.startDate) : null,
-  endDate: opp.endDate ? new Date(opp.endDate) : null,
-  location: opp.location,
-  status: opp.status as OpportunityStatus,
-  clubId: opp.clubSlug,
-  clubName: opp.clubName,
-  clubSlug: opp.clubSlug,
-  createdAt: new Date(opp.createdAt),
-}));
-
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -63,25 +43,50 @@ function slugify(text: string): string {
 /**
  * Resolves the club slug / id from user's clubId or email
  */
-export function resolveUserClub(user: { clubId?: string | null; email?: string | null }): {
-  id: string;
-  name: string;
-  slug: string;
-} {
-  const identifier = user.clubId || "coding-club-rvce";
-  const found = SEED_CLUBS.find(
-    (c) => c.slug === identifier || c.name.toLowerCase() === identifier.toLowerCase()
-  );
+export async function resolveUserClub(
+  user: { 
+    role: string;
+    clubId?: string | null; 
+    email?: string | null 
+  }
+) {
+  if (user.clubId) {
+    const clubById = await prisma.club.findUnique({
+      where: {
+        id: user.clubId,
+      },
+    });
 
-  if (found) {
-    return { id: found.slug, name: found.name, slug: found.slug };
+    if (clubById) {
+      return clubById;
+    }
+
+    const clubBySlug = await prisma.club.findUnique({
+      where: {
+        slug: user.clubId,
+      },
+    });
+
+    if (clubBySlug) {
+      return clubBySlug;
+    }
+  }
+  if (user.role === "CLUB_OWNER") {
+    throw new Error(
+      "CLUB_NOT_ASSIGNED: Club owner has no valid club assignment."
+    );
+  }
+  const defaultClub = await prisma.club.findUnique({
+    where: {
+      slug: "coding-club-rvce",
+    },
+  });
+
+  if (!defaultClub) {
+    throw new Error("CLUB_NOT_FOUND: Assigned club does not exist.");
   }
 
-  return {
-    id: identifier,
-    name: "Coding Club RVCE",
-    slug: "coding-club-rvce",
-  };
+  return defaultClub;
 }
 
 /**
@@ -108,46 +113,27 @@ export async function getClubOpportunities(
       orderBy: { deadline: "asc" },
     });
 
-    if (rows.length > 0) {
-      return rows.map((r) => ({
-        id: r.id,
-        title: r.title,
-        slug: r.slug,
-        description: r.description,
-        category: r.category,
-        officialUrl: r.officialUrl,
-        deadline: r.deadline,
-        startDate: r.startDate,
-        endDate: r.endDate,
-        location: r.location,
-        status: r.status,
-        clubId: r.clubId,
-        clubName: r.club?.name || "RVCE Club",
-        clubSlug: r.club?.slug || clubIdentifier,
-        createdAt: r.createdAt,
-      }));
-    }
-
-    // Fallback to memory
-    return filterMemoryOpportunities(clubIdentifier, userRole);
-  } catch {
-    return filterMemoryOpportunities(clubIdentifier, userRole);
+    return rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      slug: r.slug,
+      description: r.description,
+      category: r.category,
+      officialUrl: r.officialUrl,
+      deadline: r.deadline,
+      startDate: r.startDate,
+      endDate: r.endDate,
+      location: r.location,
+      status: r.status,
+      clubId: r.clubId,
+      clubName: r.club?.name || "RVCE Club",
+      clubSlug: r.club?.slug || clubIdentifier,
+      createdAt: r.createdAt,
+    }));
+  } catch (error) {
+    console.error("[Club Portal] Failed to fetch opportunities:", error);
+    throw new Error("DATABASE_ERROR: Failed to fetch club opportunities.");
   }
-}
-
-function filterMemoryOpportunities(
-  clubIdentifier: string,
-  userRole: string
-): ClubOpportunityRecord[] {
-  if (userRole === "ADMIN" && !clubIdentifier) {
-    return memoryClubOpportunities;
-  }
-  return memoryClubOpportunities.filter(
-    (opp) =>
-      opp.clubId === clubIdentifier ||
-      opp.clubSlug === clubIdentifier ||
-      opp.clubId?.includes(clubIdentifier)
-  );
 }
 
 /**
@@ -161,42 +147,27 @@ export async function createClubOpportunity(
     throw new Error("FORBIDDEN: Only club owners and admins can create opportunities.");
   }
 
-  const club = resolveUserClub(user);
+  const club = await resolveUserClub(user);
   let baseSlug = slugify(input.title);
   if (!baseSlug) baseSlug = `opportunity-${Date.now()}`;
   const slug = `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
 
-  const newRecord: ClubOpportunityRecord = {
-    id: `opp-${Date.now()}`,
-    title: input.title.trim(),
-    slug,
-    description: input.description.trim(),
-    category: input.category,
-    officialUrl: input.officialUrl.trim(),
-    deadline: new Date(input.deadline),
-    startDate: input.startDate ? new Date(input.startDate) : null,
-    endDate: input.endDate ? new Date(input.endDate) : null,
-    location: input.location?.trim() || "RVCE Campus",
-    status: input.status || "APPROVED",
-    clubId: club.id,
-    clubName: club.name,
-    clubSlug: club.slug,
-    createdAt: new Date(),
-  };
-
   try {
     const created = await prisma.opportunity.create({
       data: {
-        title: newRecord.title,
-        slug: newRecord.slug,
-        description: newRecord.description,
-        category: newRecord.category,
-        officialUrl: newRecord.officialUrl,
-        deadline: newRecord.deadline,
-        startDate: newRecord.startDate,
-        endDate: newRecord.endDate,
-        location: newRecord.location,
-        status: newRecord.status,
+        title: input.title.trim(),
+        slug,
+        description: input.description.trim(),
+        category: input.category,
+        officialUrl: input.officialUrl.trim(),
+        deadline: new Date(input.deadline),
+        startDate: input.startDate ? new Date(input.startDate) : null,
+        endDate: input.endDate ? new Date(input.endDate) : null,
+        location: input.location?.trim() || "RVCE Campus",
+        status:
+          user.role === "ADMIN"
+            ? input.status || "APPROVED"
+            : "SUBMITTED",
         clubId: club.id,
         createdById: user.id,
       },
@@ -204,14 +175,28 @@ export async function createClubOpportunity(
     });
 
     return {
-      ...newRecord,
       id: created.id,
+      title: created.title,
+      slug: created.slug,
+      description: created.description,
+      category: created.category,
+      officialUrl: created.officialUrl,
+      deadline: created.deadline,
+      startDate: created.startDate,
+      endDate: created.endDate,
+      location: created.location,
+      status: created.status,
+      clubId: created.clubId,
       clubName: created.club?.name || club.name,
+      clubSlug: created.club?.slug || club.slug,
+      createdAt: created.createdAt,
     };
-  } catch {
-    // Memory fallback
-    memoryClubOpportunities.unshift(newRecord);
-    return newRecord;
+  } catch (error) {
+    if ((error as { code?: string })?.code === "P2025") {
+      throw new Error("NOT_FOUND: Opportunity not found.");
+    }
+    console.error("[Club Portal] Failed to create opportunity:", error);
+    throw new Error("DATABASE_ERROR: Could not save to the database.");
   }
 }
 
@@ -227,40 +212,17 @@ export async function updateClubOpportunity(
     throw new Error("FORBIDDEN: Only club owners and admins can edit opportunities.");
   }
 
-  const club = resolveUserClub(user);
+  const club = await resolveUserClub(user);
 
-  // Check in database or memory
-  let existingOpp: ClubOpportunityRecord | null = null;
+  let existingOpp;
   try {
-    const row = await prisma.opportunity.findUnique({
+    existingOpp = await prisma.opportunity.findUnique({
       where: { id },
       include: { club: true },
     });
-    if (row) {
-      existingOpp = {
-        id: row.id,
-        title: row.title,
-        slug: row.slug,
-        description: row.description,
-        category: row.category,
-        officialUrl: row.officialUrl,
-        deadline: row.deadline,
-        startDate: row.startDate,
-        endDate: row.endDate,
-        location: row.location,
-        status: row.status,
-        clubId: row.clubId,
-        clubName: row.club?.name || "",
-        clubSlug: row.club?.slug || "",
-        createdAt: row.createdAt,
-      };
-    }
-  } catch {
-    existingOpp = memoryClubOpportunities.find((o) => o.id === id) || null;
-  }
-
-  if (!existingOpp) {
-    existingOpp = memoryClubOpportunities.find((o) => o.id === id) || null;
+  } catch (error) {
+    console.error("[Club Portal] Failed to find opportunity:", error);
+    throw new Error("DATABASE_ERROR: Could not save to the database.");
   }
 
   if (!existingOpp) {
@@ -271,7 +233,7 @@ export async function updateClubOpportunity(
   const isOwner =
     user.role === "ADMIN" ||
     existingOpp.clubId === club.id ||
-    existingOpp.clubSlug === club.slug;
+    existingOpp.club?.slug === club.slug;
 
   if (!isOwner) {
     throw new Error(
@@ -279,43 +241,51 @@ export async function updateClubOpportunity(
     );
   }
 
-  const updated: ClubOpportunityRecord = {
-    ...existingOpp,
-    title: input.title !== undefined ? input.title.trim() : existingOpp.title,
-    description: input.description !== undefined ? input.description.trim() : existingOpp.description,
-    category: input.category || existingOpp.category,
-    officialUrl: input.officialUrl !== undefined ? input.officialUrl.trim() : existingOpp.officialUrl,
-    deadline: input.deadline ? new Date(input.deadline) : existingOpp.deadline,
-    startDate: input.startDate !== undefined ? (input.startDate ? new Date(input.startDate) : null) : existingOpp.startDate,
-    endDate: input.endDate !== undefined ? (input.endDate ? new Date(input.endDate) : null) : existingOpp.endDate,
-    location: input.location !== undefined ? input.location : existingOpp.location,
-    status: input.status || existingOpp.status,
-  };
-
   try {
-    await prisma.opportunity.update({
+    const updated = await prisma.opportunity.update({
       where: { id },
       data: {
-        title: updated.title,
-        description: updated.description,
-        category: updated.category,
-        officialUrl: updated.officialUrl,
-        deadline: updated.deadline,
-        startDate: updated.startDate,
-        endDate: updated.endDate,
-        location: updated.location,
-        status: updated.status,
+        ...(input.title !== undefined && { title: input.title.trim() }),
+        ...(input.description !== undefined && { description: input.description.trim() }),
+        ...(input.category !== undefined && { category: input.category }),
+        ...(input.officialUrl !== undefined && { officialUrl: input.officialUrl.trim() }),
+        ...(input.deadline !== undefined && { deadline: new Date(input.deadline) }),
+        ...(input.startDate !== undefined && {
+          startDate: input.startDate ? new Date(input.startDate) : null,
+        }),
+        ...(input.endDate !== undefined && {
+          endDate: input.endDate ? new Date(input.endDate) : null,
+        }),
+        ...(input.location !== undefined && { location: input.location }),
+        ...(input.status !== undefined && user.role === "ADMIN" && { status: input.status }),
       },
+      include: { club: true },
     });
-  } catch {
-    // Update memory
-    const idx = memoryClubOpportunities.findIndex((o) => o.id === id);
-    if (idx !== -1) {
-      memoryClubOpportunities[idx] = updated;
-    }
-  }
 
-  return updated;
+    return {
+      id: updated.id,
+      title: updated.title,
+      slug: updated.slug,
+      description: updated.description,
+      category: updated.category,
+      officialUrl: updated.officialUrl,
+      deadline: updated.deadline,
+      startDate: updated.startDate,
+      endDate: updated.endDate,
+      location: updated.location,
+      status: updated.status,
+      clubId: updated.clubId,
+      clubName: updated.club?.name || "",
+      clubSlug: updated.club?.slug || "",
+      createdAt: updated.createdAt,
+    };
+  } catch (error) {
+    if ((error as { code?: string })?.code === "P2025") {
+      throw new Error("NOT_FOUND: Opportunity not found.");
+    }
+    console.error("[Club Portal] Failed to update opportunity:", error);
+    throw new Error("DATABASE_ERROR: Could not save to the database.");
+  }
 }
 
 /**
@@ -329,35 +299,17 @@ export async function deleteClubOpportunity(
     throw new Error("FORBIDDEN: Only club owners and admins can delete opportunities.");
   }
 
-  const club = resolveUserClub(user);
+  const club = await resolveUserClub(user);
 
-  let existingOpp = memoryClubOpportunities.find((o) => o.id === id);
+  let existingOpp;
   try {
-    const row = await prisma.opportunity.findUnique({
+    existingOpp = await prisma.opportunity.findUnique({
       where: { id },
       include: { club: true },
     });
-    if (row) {
-      existingOpp = {
-        id: row.id,
-        title: row.title,
-        slug: row.slug,
-        description: row.description,
-        category: row.category,
-        officialUrl: row.officialUrl,
-        deadline: row.deadline,
-        startDate: row.startDate,
-        endDate: row.endDate,
-        location: row.location,
-        status: row.status,
-        clubId: row.clubId,
-        clubName: row.club?.name || "",
-        clubSlug: row.club?.slug || "",
-        createdAt: row.createdAt,
-      };
-    }
-  } catch {
-    // Rely on memory
+  } catch (error) {
+    console.error("[Club Portal] Failed to find opportunity:", error);
+    throw new Error("DATABASE_ERROR: Could not save to the database.");
   }
 
   if (!existingOpp) {
@@ -368,7 +320,7 @@ export async function deleteClubOpportunity(
   const isOwner =
     user.role === "ADMIN" ||
     existingOpp.clubId === club.id ||
-    existingOpp.clubSlug === club.slug;
+    existingOpp.club?.slug === club.slug;
 
   if (!isOwner) {
     throw new Error(
@@ -380,9 +332,12 @@ export async function deleteClubOpportunity(
     await prisma.opportunity.delete({
       where: { id },
     });
-  } catch {
-    memoryClubOpportunities = memoryClubOpportunities.filter((o) => o.id !== id);
+    return true;
+  } catch (error) {
+    if ((error as { code?: string })?.code === "P2025") {
+      throw new Error("NOT_FOUND: Opportunity not found.");
+    }
+    console.error("[Club Portal] Failed to delete opportunity:", error);
+    throw new Error("DATABASE_ERROR: Could not save to the database.");
   }
-
-  return true;
 }

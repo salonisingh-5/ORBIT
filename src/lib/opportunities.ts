@@ -111,9 +111,31 @@ function sortRecords(records: OpportunityRecord[], sortBy: OpportunitySortBy): O
   });
 }
 
+import { getMemoryOpportunities } from "@/lib/db-store";
+
 function fromSeed(params: OpportunityQuery = {}): OpportunityRecord[] {
   const sortBy: OpportunitySortBy = params.sortBy === "newest" ? "newest" : "deadline";
-  const records = SEED_OPPORTUNITIES.map(seedToRecord).filter((item) => matchesQuery(item, params));
+  const memoryOpps = getMemoryOpportunities();
+  const records = memoryOpps
+    .map((opp) => ({
+      id: opp.id,
+      title: opp.title,
+      slug: opp.slug,
+      description: opp.description,
+      category: opp.category,
+      officialUrl: opp.officialUrl,
+      deadline: opp.deadline,
+      startDate: opp.startDate,
+      endDate: opp.endDate,
+      location: opp.location,
+      status: opp.status,
+      clubId: opp.clubId,
+      createdAt: opp.createdAt,
+      club: opp.clubName
+        ? { id: opp.clubId || opp.clubSlug, name: opp.clubName, slug: opp.clubSlug }
+        : null,
+    }))
+    .filter((item) => item.status === "APPROVED" && matchesQuery(item, params));
   return sortRecords(records, sortBy);
 }
 
@@ -174,8 +196,15 @@ export async function getOpportunities(params: OpportunityQuery = {}): Promise<O
       include: { club: true },
       orderBy: sortBy === "newest" ? { createdAt: "desc" } : { deadline: "asc" },
     });
-    return rows.map(toRecord);
-  } catch {
+    if (rows.length > 0 || process.env.NODE_ENV === "production") {
+      return rows.map(toRecord);
+    }
+    return fromSeed(params);
+  } catch (error) {
+    console.error("[Opportunities] Database query failed:", error);
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("DATABASE_ERROR: Failed to load opportunities.");
+    }
     return fromSeed(params);
   }
 }
@@ -186,11 +215,32 @@ export async function getOpportunityBySlug(slug: string): Promise<OpportunityRec
       where: { slug },
       include: { club: true },
     });
-    return row ? toRecord(row) : null;
+    if (row) return toRecord(row);
   } catch {
-    const match = SEED_OPPORTUNITIES.find((item) => item.slug === slug);
-    return match ? seedToRecord(match) : null;
+    // fallback
   }
+
+  const memoryOpps = getMemoryOpportunities();
+  const match = memoryOpps.find((item) => item.slug === slug);
+  if (!match) return null;
+  return {
+    id: match.id,
+    title: match.title,
+    slug: match.slug,
+    description: match.description,
+    category: match.category,
+    officialUrl: match.officialUrl,
+    deadline: match.deadline,
+    startDate: match.startDate,
+    endDate: match.endDate,
+    location: match.location,
+    status: match.status,
+    clubId: match.clubId,
+    createdAt: match.createdAt,
+    club: match.clubName
+      ? { id: match.clubId || match.clubSlug, name: match.clubName, slug: match.clubSlug }
+      : null,
+  };
 }
 
 export async function getOpportunityStats(): Promise<OpportunityStats> {

@@ -9,6 +9,7 @@ export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   pages: {
     signIn: "/",
@@ -34,15 +35,31 @@ export const authOptions: NextAuthOptions = {
         role: { label: "Role", type: "text", placeholder: "STUDENT" },
       },
       async authorize(credentials) {
-        if (!credentials?.email) return null;
+        if (process.env.NODE_ENV === "production") {
+          return null;
+        }
 
+        if (process.env.ENABLE_DEV_LOGIN !== "true") {
+          return null;
+       }
+
+
+        
+        if (!credentials?.email) return null;
+         
         const email = credentials.email.trim().toLowerCase();
         if (!email.endsWith("@rvce.edu.in")) {
           throw new Error("Only @rvce.edu.in emails are allowed.");
         }
 
-        const role = (credentials.role as Role) || Role.STUDENT;
-
+        const requestedRole = credentials.role as Role | undefined;
+        const role =
+          requestedRole === Role.ADMIN ||
+          requestedRole === Role.CLUB_OWNER ||
+          requestedRole === Role.STUDENT
+          
+          ? requestedRole
+          : Role.STUDENT;
         try {
           // Find or upsert user in database
           let dbUser = await prisma.user.findUnique({
@@ -68,18 +85,27 @@ export const authOptions: NextAuthOptions = {
           };
         } catch (dbError) {
           // Fallback if local database is not connected
-          console.warn("[Auth] DB lookup skipped in dev mode:", dbError);
-          return {
-            id: `dev-${role.toLowerCase()}-id`,
-            email,
-            name: email.split("@")[0].replace(".", " ").toUpperCase(),
-            role,
-            clubId: role === Role.CLUB_OWNER ? "club-coding-club" : null,
-          };
+          console.error("[Auth] Database authentication failed:", dbError);
+          return null;
         }
       },
     }),
   ],
+  events: {
+    async signIn({ user }) {
+      if (user?.email && process.env.ADMIN_EMAILS) {
+        const adminEmails = process.env.ADMIN_EMAILS.split(",")
+          .map((e) => e.trim().toLowerCase())
+          .filter(Boolean);
+        if (adminEmails.includes(user.email.toLowerCase())) {
+          await prisma.user.updateMany({
+            where: { email: user.email.toLowerCase() },
+            data: { role: Role.ADMIN },
+          });
+        }
+      }
+    },
+  },
   callbacks: {
     async signIn({ user, account, profile }) {
       if (!user.email) return false;
@@ -89,6 +115,14 @@ export const authOptions: NextAuthOptions = {
       if (!email.endsWith("@rvce.edu.in")) {
         console.warn(`[Auth] Rejected login attempt with non-RVCE email: ${email}`);
         return false;
+      }
+
+      if (account?.provider === "google") {
+        const googleProfile = profile as { email_verified?: boolean } | undefined;
+        if (googleProfile?.email_verified !== true) {
+          console.warn(`[Auth] Rejected unverified Google email: ${email}`);
+          return false;
+        }
       }
 
       return true;
@@ -124,5 +158,5 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET || "orbit_rvce_secure_secret_fallback_key",
+  secret: process.env.NEXTAUTH_SECRET,
 };
