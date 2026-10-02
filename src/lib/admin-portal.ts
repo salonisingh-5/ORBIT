@@ -1,10 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { SEED_CLUBS, SEED_OPPORTUNITIES } from "@/lib/seed-data";
 import { Role, Category, OpportunityStatus } from "@prisma/client";
-import {
-  getMemoryOpportunities,
-  slugify,
-} from "@/lib/db-store";
+import { slugify } from "@/lib/db-store";
 
 export interface AdminClubRecord {
   id: string;
@@ -55,86 +51,6 @@ export interface AdminMetrics {
   rejectedCount: number;
 }
 
-// ── In-Memory Seed Storage for Dev / Offline Mode ──
-
-let memoryClubs: AdminClubRecord[] = SEED_CLUBS.map((c, i) => ({
-  id: c.slug,
-  name: c.name,
-  slug: c.slug,
-  description: c.description,
-  websiteUrl: c.websiteUrl,
-  logoUrl: c.logoUrl,
-  ownerCount: 1,
-  opportunityCount: SEED_OPPORTUNITIES.filter((o) => o.clubSlug === c.slug).length,
-  createdAt: new Date(Date.now() - (10 - i) * 86400000),
-}));
-
-let memoryUsers: AdminUserRecord[] = [
-  {
-    id: "user-admin-main",
-    name: "Campus Administrator",
-    email: "admin@rvce.edu.in",
-    role: "ADMIN",
-    clubId: null,
-    clubName: null,
-    createdAt: new Date("2026-01-01"),
-  },
-  {
-    id: "user-lead-coding",
-    name: "Coding Club Lead",
-    email: "codingclub@rvce.edu.in",
-    role: "CLUB_OWNER",
-    clubId: "coding-club-rvce",
-    clubName: "Coding Club RVCE",
-    createdAt: new Date("2026-01-10"),
-  },
-  {
-    id: "user-lead-ieee",
-    name: "IEEE RVCE Lead",
-    email: "ieee@rvce.edu.in",
-    role: "CLUB_OWNER",
-    clubId: "ieee-rvce",
-    clubName: "IEEE RVCE Student Branch",
-    createdAt: new Date("2026-01-15"),
-  },
-  {
-    id: "user-student-1",
-    name: "Aarav Sharma",
-    email: "aarav.sharma@rvce.edu.in",
-    role: "STUDENT",
-    clubId: null,
-    clubName: null,
-    createdAt: new Date("2026-02-01"),
-  },
-  {
-    id: "user-student-2",
-    name: "Diya Rao",
-    email: "diya.rao@rvce.edu.in",
-    role: "STUDENT",
-    clubId: null,
-    clubName: null,
-    createdAt: new Date("2026-02-05"),
-  },
-];
-
-let memoryOpportunities: AdminOpportunityRecord[] = SEED_OPPORTUNITIES.map((opp) => ({
-  id: opp.id,
-  title: opp.title,
-  slug: opp.slug,
-  description: opp.description,
-  category: opp.category as Category,
-  officialUrl: opp.officialUrl,
-  deadline: new Date(opp.deadline),
-  startDate: opp.startDate ? new Date(opp.startDate) : null,
-  endDate: opp.endDate ? new Date(opp.endDate) : null,
-  location: opp.location,
-  status: opp.status as OpportunityStatus,
-  clubId: opp.clubSlug,
-  clubName: opp.clubName,
-  clubSlug: opp.clubSlug,
-  createdAt: new Date(opp.createdAt),
-}));
-
 // ── Metrics ──
 
 export async function getAdminMetrics(): Promise<AdminMetrics> {
@@ -148,29 +64,18 @@ export async function getAdminMetrics(): Promise<AdminMetrics> {
       prisma.opportunity.count({ where: { status: "REJECTED" } }),
     ]);
 
-    if (clubCount > 0 || totalOpps > 0) {
-      return {
-        totalUsers: userCount,
-        totalClubs: clubCount,
-        totalOpportunities: totalOpps,
-        approvedCount: approved,
-        pendingCount: submitted,
-        rejectedCount: rejected,
-      };
-    }
+    return {
+      totalUsers: userCount,
+      totalClubs: clubCount,
+      totalOpportunities: totalOpps,
+      approvedCount: approved,
+      pendingCount: submitted,
+      rejectedCount: rejected,
+    };
   } catch (error) {
-  console.error("[Admin Portal] Database operation failed:", error);
-  throw new Error("DATABASE_ERROR: Admin operation failed.");
-}
-
-  return {
-    totalUsers: memoryUsers.length,
-    totalClubs: memoryClubs.length,
-    totalOpportunities: memoryOpportunities.length,
-    approvedCount: memoryOpportunities.filter((o) => o.status === "APPROVED").length,
-    pendingCount: memoryOpportunities.filter((o) => o.status === "SUBMITTED").length,
-    rejectedCount: memoryOpportunities.filter((o) => o.status === "REJECTED").length,
-  };
+    console.error("[Admin Portal] Database operation failed:", error);
+    throw new Error("DATABASE_ERROR: Admin operation failed.");
+  }
 }
 
 // ── Club Management ──
@@ -186,25 +91,21 @@ export async function getAllClubs(): Promise<AdminClubRecord[]> {
       orderBy: { name: "asc" },
     });
 
-    if (rows.length > 0) {
-      return rows.map((c) => ({
-        id: c.id,
-        name: c.name,
-        slug: c.slug,
-        description: c.description,
-        websiteUrl: c.websiteUrl,
-        logoUrl: c.logoUrl,
-        ownerCount: c._count.owners,
-        opportunityCount: c._count.opportunities,
-        createdAt: c.createdAt,
-      }));
-    }
+    return rows.map((c) => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      description: c.description,
+      websiteUrl: c.websiteUrl,
+      logoUrl: c.logoUrl,
+      ownerCount: c._count.owners,
+      opportunityCount: c._count.opportunities,
+      createdAt: c.createdAt,
+    }));
   } catch (error) {
-  console.error("[Admin Portal] Database operation failed:", error);
-  throw new Error("DATABASE_ERROR: Admin operation failed.");
-}
-
-  return memoryClubs;
+    console.error("[Admin Portal] Database operation failed:", error);
+    throw new Error("DATABASE_ERROR: Admin operation failed.");
+  }
 }
 
 export async function createClub(data: {
@@ -221,25 +122,13 @@ export async function createClub(data: {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
 
-  const newClub: AdminClubRecord = {
-    id: slug,
-    name,
-    slug,
-    description: data.description?.trim() || null,
-    websiteUrl: data.websiteUrl?.trim() || null,
-    logoUrl: null,
-    ownerCount: 0,
-    opportunityCount: 0,
-    createdAt: new Date(),
-  };
-
   try {
     const created = await prisma.club.create({
       data: {
-        name: newClub.name,
-        slug: newClub.slug,
-        description: newClub.description,
-        websiteUrl: newClub.websiteUrl,
+        name,
+        slug,
+        description: data.description?.trim() || null,
+        websiteUrl: data.websiteUrl?.trim() || null,
       },
       include: {
         _count: {
@@ -259,9 +148,9 @@ export async function createClub(data: {
       opportunityCount: created._count.opportunities,
       createdAt: created.createdAt,
     };
-  } catch {
-    memoryClubs.push(newClub);
-    return newClub;
+  } catch (error) {
+    console.error("[Admin Portal] Database operation failed:", error);
+    throw new Error("DATABASE_ERROR: Admin operation failed.");
   }
 }
 
@@ -295,20 +184,12 @@ export async function updateClub(
       opportunityCount: updated._count.opportunities,
       createdAt: updated.createdAt,
     };
-  } catch {
-    const idx = memoryClubs.findIndex((c) => c.id === id || c.slug === id);
-    if (idx === -1) {
+  } catch (error) {
+    if ((error as { code?: string })?.code === "P2025") {
       throw new Error("NOT_FOUND: Club not found.");
     }
-    const current = memoryClubs[idx];
-    const modified: AdminClubRecord = {
-      ...current,
-      name: data.name?.trim() || current.name,
-      description: data.description !== undefined ? data.description.trim() || null : current.description,
-      websiteUrl: data.websiteUrl !== undefined ? data.websiteUrl.trim() || null : current.websiteUrl,
-    };
-    memoryClubs[idx] = modified;
-    return modified;
+    console.error("[Admin Portal] Database operation failed:", error);
+    throw new Error("DATABASE_ERROR: Admin operation failed.");
   }
 }
 
@@ -321,25 +202,19 @@ export async function getAllUsers(): Promise<AdminUserRecord[]> {
       orderBy: { createdAt: "desc" },
     });
 
-    if (rows.length > 0) {
-      return rows.map((u) => ({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        role: u.role,
-        clubId: u.clubId,
-        clubName: u.club?.name || null,
-        createdAt: u.createdAt,
-      }));
-    }
-  } 
-   catch (error) {
-  console.error("[Admin Portal] Database operation failed:", error);
-  throw new Error("DATABASE_ERROR: Admin operation failed.");
-}
-  
-
-  return memoryUsers;
+    return rows.map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      clubId: u.clubId,
+      clubName: u.club?.name || null,
+      createdAt: u.createdAt,
+    }));
+  } catch (error) {
+    console.error("[Admin Portal] Database operation failed:", error);
+    throw new Error("DATABASE_ERROR: Admin operation failed.");
+  }
 }
 
 export async function updateUserRoleAndClub(
@@ -367,24 +242,12 @@ export async function updateUserRoleAndClub(
       clubName: updated.club?.name || null,
       createdAt: updated.createdAt,
     };
-  } catch {
-    const idx = memoryUsers.findIndex((u) => u.id === userId);
-    if (idx === -1) {
+  } catch (error) {
+    if ((error as { code?: string })?.code === "P2025") {
       throw new Error("NOT_FOUND: User not found.");
     }
-    const current = memoryUsers[idx];
-    const club = resolvedClubId
-      ? memoryClubs.find((c) => c.id === resolvedClubId || c.slug === resolvedClubId)
-      : null;
-
-    const modified: AdminUserRecord = {
-      ...current,
-      role: data.role,
-      clubId: resolvedClubId,
-      clubName: club?.name || null,
-    };
-    memoryUsers[idx] = modified;
-    return modified;
+    console.error("[Admin Portal] Database operation failed:", error);
+    throw new Error("DATABASE_ERROR: Admin operation failed.");
   }
 }
 
@@ -401,34 +264,27 @@ export async function getAdminOpportunities(
       orderBy: { createdAt: "desc" },
     });
 
-    if (rows.length > 0) {
-      return rows.map((r) => ({
-        id: r.id,
-        title: r.title,
-        slug: r.slug,
-        description: r.description,
-        category: r.category,
-        officialUrl: r.officialUrl,
-        deadline: r.deadline,
-        startDate: r.startDate,
-        endDate: r.endDate,
-        location: r.location,
-        status: r.status,
-        clubId: r.clubId,
-        clubName: r.club?.name || "RVCE Club",
-        clubSlug: r.club?.slug || "",
-        createdAt: r.createdAt,
-      }));
-    }
+    return rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      slug: r.slug,
+      description: r.description,
+      category: r.category,
+      officialUrl: r.officialUrl,
+      deadline: r.deadline,
+      startDate: r.startDate,
+      endDate: r.endDate,
+      location: r.location,
+      status: r.status,
+      clubId: r.clubId,
+      clubName: r.club?.name || "RVCE Club",
+      clubSlug: r.club?.slug || "",
+      createdAt: r.createdAt,
+    }));
   } catch (error) {
-  console.error("[Admin Portal] Database operation failed:", error);
-  throw new Error("DATABASE_ERROR: Admin operation failed.");
-}
-
-  if (statusFilter && statusFilter !== "ALL") {
-    return memoryOpportunities.filter((o) => o.status === statusFilter);
+    console.error("[Admin Portal] Database operation failed:", error);
+    throw new Error("DATABASE_ERROR: Admin operation failed.");
   }
-  return memoryOpportunities;
 }
 
 export async function createOpportunityAsAdmin(
@@ -464,66 +320,49 @@ export async function createOpportunityAsAdmin(
     throw new Error("VALIDATION: Invalid deadline date.");
   }
 
-  // Resolve club
-  let clubName = "RVCE Campus Club";
-  let clubSlug = "coding-club-rvce";
-  const clubIdentifier = data.clubId || "coding-club-rvce";
-  const foundClub = memoryClubs.find((c) => c.id === clubIdentifier || c.slug === clubIdentifier);
-  if (foundClub) {
-    clubName = foundClub.name;
-    clubSlug = foundClub.slug;
-  }
-
   let baseSlug = slugify(title);
   if (!baseSlug) baseSlug = `opportunity-${Date.now()}`;
   const slug = `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
 
-  const newRecord: AdminOpportunityRecord = {
-    id: `opp-${Date.now()}`,
-    title,
-    slug,
-    description,
-    category: data.category,
-    officialUrl,
-    deadline,
-    startDate: data.startDate ? new Date(data.startDate) : null,
-    endDate: data.endDate ? new Date(data.endDate) : null,
-    location: data.location?.trim() || "RVCE Campus",
-    status: data.status || "APPROVED",
-    clubId: foundClub?.id || clubSlug,
-    clubName,
-    clubSlug,
-    createdAt: new Date(),
-  };
-
   try {
     const created = await prisma.opportunity.create({
       data: {
-        title: newRecord.title,
-        slug: newRecord.slug,
-        description: newRecord.description,
-        category: newRecord.category,
-        officialUrl: newRecord.officialUrl,
-        deadline: newRecord.deadline,
-        startDate: newRecord.startDate,
-        endDate: newRecord.endDate,
-        location: newRecord.location,
-        status: newRecord.status,
-        clubId: newRecord.clubId,
+        title,
+        slug,
+        description,
+        category: data.category,
+        officialUrl,
+        deadline,
+        startDate: data.startDate ? new Date(data.startDate) : null,
+        endDate: data.endDate ? new Date(data.endDate) : null,
+        location: data.location?.trim() || "RVCE Campus",
+        status: data.status || "APPROVED",
+        clubId: data.clubId || null,
         createdById: adminUser.id,
       },
       include: { club: true },
     });
 
-    const res: AdminOpportunityRecord = {
-      ...newRecord,
+    return {
       id: created.id,
-      clubName: created.club?.name || clubName,
+      title: created.title,
+      slug: created.slug,
+      description: created.description,
+      category: created.category,
+      officialUrl: created.officialUrl,
+      deadline: created.deadline,
+      startDate: created.startDate,
+      endDate: created.endDate,
+      location: created.location,
+      status: created.status,
+      clubId: created.clubId,
+      clubName: created.club?.name || "RVCE Club",
+      clubSlug: created.club?.slug || "",
+      createdAt: created.createdAt,
     };
-    return res;
   } catch (error) {
-    console.error("[Admin] Database write failed:", error);
-    throw new Error("DATABASE_ERROR: Could not save to the database.");
+    console.error("[Admin Portal] Database operation failed:", error);
+    throw new Error("DATABASE_ERROR: Admin operation failed.");
   }
 }
 
@@ -537,7 +376,6 @@ export async function moderateOpportunity(
       data: { status: newStatus },
       include: { club: true },
     });
-
 
     return {
       id: updated.id,
@@ -557,8 +395,11 @@ export async function moderateOpportunity(
       createdAt: updated.createdAt,
     };
   } catch (error) {
-    console.error("[Admin] Database write failed:", error);
-    throw new Error("DATABASE_ERROR: Could not save to the database.");
+    if ((error as { code?: string })?.code === "P2025") {
+      throw new Error("NOT_FOUND: Opportunity not found.");
+    }
+    console.error("[Admin Portal] Database operation failed:", error);
+    throw new Error("DATABASE_ERROR: Admin operation failed.");
   }
 }
 
@@ -597,7 +438,6 @@ export async function updateOpportunityAsAdmin(
       include: { club: true },
     });
 
-
     return {
       id: updated.id,
       title: updated.title,
@@ -616,8 +456,11 @@ export async function updateOpportunityAsAdmin(
       createdAt: updated.createdAt,
     };
   } catch (error) {
-    console.error("[Admin] Database write failed:", error);
-    throw new Error("DATABASE_ERROR: Could not save to the database.");
+    if ((error as { code?: string })?.code === "P2025") {
+      throw new Error("NOT_FOUND: Opportunity not found.");
+    }
+    console.error("[Admin Portal] Database operation failed:", error);
+    throw new Error("DATABASE_ERROR: Admin operation failed.");
   }
 }
 
@@ -626,8 +469,10 @@ export async function deleteOpportunityAsAdmin(id: string): Promise<boolean> {
     await prisma.opportunity.delete({ where: { id } });
     return true;
   } catch (error) {
-    console.error("[Admin] Database write failed:", error);
-    throw new Error("DATABASE_ERROR: Could not save to the database.");
+    if ((error as { code?: string })?.code === "P2025") {
+      throw new Error("NOT_FOUND: Opportunity not found.");
+    }
+    console.error("[Admin Portal] Database operation failed:", error);
+    throw new Error("DATABASE_ERROR: Admin operation failed.");
   }
 }
-
