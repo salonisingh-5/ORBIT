@@ -51,6 +51,25 @@ export interface AdminMetrics {
   rejectedCount: number;
 }
 
+// ── Helper ──
+
+export async function resolveClubId(input: string | null | undefined): Promise<string | null> {
+  if (!input || !input.trim()) {
+    return null;
+  }
+  const trimmed = input.trim();
+  const club = await prisma.club.findFirst({
+    where: {
+      OR: [{ id: trimmed }, { slug: trimmed }],
+    },
+    select: { id: true },
+  });
+  if (!club) {
+    throw new Error("VALIDATION: Unknown club.");
+  }
+  return club.id;
+}
+
 // ── Metrics ──
 
 export async function getAdminMetrics(): Promise<AdminMetrics> {
@@ -221,7 +240,7 @@ export async function updateUserRoleAndClub(
   userId: string,
   data: { role: Role; clubId?: string | null }
 ): Promise<AdminUserRecord> {
-  const resolvedClubId = data.role === "CLUB_OWNER" ? data.clubId || null : null;
+  const resolvedClubId = data.role === "CLUB_OWNER" ? await resolveClubId(data.clubId) : null;
 
   try {
     const updated = await prisma.user.update({
@@ -337,7 +356,7 @@ export async function createOpportunityAsAdmin(
         endDate: data.endDate ? new Date(data.endDate) : null,
         location: data.location?.trim() || "RVCE Campus",
         status: data.status || "APPROVED",
-        clubId: data.clubId || null,
+        clubId: await resolveClubId(data.clubId),
         createdById: adminUser.id,
       },
       include: { club: true },
